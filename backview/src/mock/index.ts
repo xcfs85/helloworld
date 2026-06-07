@@ -1,0 +1,238 @@
+/** 全局 Mock 数据（与 UI-back 原型保持一致）
+ * 真实接入后端时，可移除此文件并让 API 调用真实接口 */
+
+import type {
+  User, Post, Comment, Template, SensitiveWord, Report, Banner,
+  Topic, Special, Push, Role, AdminAccount, OperationLog, Member, ColorChip,
+  Category, Tag
+} from '@/types'
+
+/* ===== 用户 ===== */
+export const mockUsers: User[] = [
+  { id: 'u_10001', nickname: '小美', phone: '138****8888', register_method: 'wechat', register_time: '2026-01-01 10:00', last_login_time: '2026-06-07 09:30', is_member: true, member_level: 'VIP1', member_expire_time: '2026-12-31', status: 'normal', post_count: 23, follower_count: 89, gender: 'female', city: '北京' },
+  { id: 'u_10002', nickname: '小红', phone: '139****1234', register_method: 'phone', register_time: '2026-01-15 14:20', last_login_time: '2026-06-07 08:30', is_member: false, status: 'normal', post_count: 5, follower_count: 23, gender: 'female', city: '上海' },
+  { id: 'u_10003', nickname: '豆豆爱拼', phone: '136****5566', register_method: 'wechat', register_time: '2026-02-03 09:15', last_login_time: '2026-06-06 21:14', is_member: true, member_level: 'VIP2', member_expire_time: '2026-09-04', status: 'muted', mute_expire: '2026-06-10', post_count: 156, follower_count: 2341, gender: 'female', city: '广州' },
+  { id: 'u_10004', nickname: '拼图小子', phone: '187****0011', register_method: 'apple', register_time: '2026-03-12 11:00', last_login_time: '2026-06-05 18:00', is_member: true, member_level: 'VIP1', member_expire_time: '2026-06-21', status: 'normal', post_count: 42, follower_count: 321, gender: 'male', city: '深圳' },
+  { id: 'u_10005', nickname: '阿狸的店', phone: '188****7788', register_method: 'phone', register_time: '2026-02-20 16:00', last_login_time: '2026-06-02 20:00', is_member: false, status: 'disabled', post_count: 0, follower_count: 0, gender: 'female', city: '杭州' },
+  { id: 'u_10006', nickname: '星空物语', phone: '132****4499', register_method: 'wechat', register_time: '2025-12-01 10:00', last_login_time: '2026-06-07 07:00', is_member: true, member_level: 'SVIP', member_expire_time: '2027-06-07', status: 'normal', post_count: 289, follower_count: 5672, gender: 'female', city: '成都' },
+  { id: 'u_10007', nickname: '毛线球', phone: '186****3322', register_method: 'wechat', register_time: '2026-04-05 13:00', last_login_time: '2026-06-06 12:00', is_member: false, status: 'normal', post_count: 8, follower_count: 15, gender: 'female', city: '武汉' },
+  { id: 'u_10008', nickname: '小小酥', phone: '', register_method: 'guest', register_time: '2026-05-01 08:00', last_login_time: '2026-06-04 14:00', is_member: false, status: 'muted', mute_expire: '2026-06-14', post_count: 0, follower_count: 0, gender: 'unknown', city: '南京' },
+  { id: 'u_10201', nickname: '布丁猫', phone: '155****9988', register_method: 'phone', register_time: '2026-02-28 19:00', last_login_time: '2026-06-07 11:00', is_member: true, member_level: 'VIP1', member_expire_time: '2026-06-12', status: 'normal', post_count: 67, follower_count: 423, gender: 'female', city: '西安' },
+  { id: 'u_10312', nickname: '甜甜圈', phone: '178****1122', register_method: 'wechat', register_time: '2025-11-12 14:00', last_login_time: '2026-06-07 09:00', is_member: true, member_level: 'VIP3', member_expire_time: '2026-12-01', status: 'normal', post_count: 198, follower_count: 1890, gender: 'female', city: '重庆' },
+  { id: 'u_10421', nickname: '小黄鸭', phone: '189****6655', register_method: 'apple', register_time: '2026-05-20 10:00', last_login_time: '2026-06-05 10:00', is_member: true, member_level: 'VIP1', member_expire_time: '2026-06-09', status: 'normal', post_count: 12, follower_count: 56, gender: 'male', city: '苏州' }
+]
+
+/* ===== 帖子 ===== */
+const postCovers = [
+  'linear-gradient(135deg,#FFD2B0,#FF7A5A)',
+  'linear-gradient(135deg,#9DC8E5,#6FA8D4)',
+  'linear-gradient(135deg,#F2A6A6,#9A7FCC)',
+  'linear-gradient(135deg,#4FBB8A,#6FA8D4)',
+  'linear-gradient(135deg,#F5C45E,#FF8A5A)',
+  'linear-gradient(135deg,#E07777,#F5C45E)',
+  'linear-gradient(135deg,#9A7FCC,#E07777)',
+  'linear-gradient(135deg,#4FBB8A,#F5C45E)'
+]
+
+export const mockPosts: Post[] = [
+  { id: 'p_87921', type: 'work', title: '给闺蜜的生日礼物 🎁', cover: postCovers[0], images: postCovers.slice(0, 9), desc: '第一次做拼豆，给闺蜜的生日礼物🎁', author_id: 'u_10001', author_nickname: '小美', create_time: '2026-06-07 09:30', ip: '123.125.*.*', device: 'iPhone 14 Pro', risk_level: 'none', topics: ['#生日礼物', '#闺蜜', '#拼豆日常'], diagram_id: 'd_xxxxx', status: 'pending' },
+  { id: 'p_87922', type: 'tutorial', title: '拼豆技巧：渐变色的取色思路', cover: postCovers[1], images: postCovers.slice(0, 5), desc: '分享一下我在做渐变色图案时的心得...', author_id: 'u_10002', author_nickname: '小红', create_time: '2026-06-07 08:14', ip: '124.230.*.*', device: 'Xiaomi 14', risk_level: 'none', topics: ['#教程', '#渐变色'], status: 'pending' },
+  { id: 'p_87923', type: 'question', title: '求助：MARD 色板 H12 缺货哪里买？', cover: postCovers[2], images: [postCovers[2]], desc: 'H12 缺货好久了，求推荐哪里能买到', author_id: 'u_10003', author_nickname: '豆豆爱拼', create_time: '2026-06-07 07:50', ip: '113.108.*.*', device: 'Huawei P60', risk_level: 'low', risk_tags: ['可能有联系方式'], topics: ['#提问', '#色号'], status: 'pending' },
+  { id: 'p_87924', type: 'work', title: '樱花树 50×50 完工啦！', cover: postCovers[3], images: postCovers.slice(0, 3), desc: '熬了 3 个晚上终于完工', author_id: 'u_10004', author_nickname: '拼图小子', create_time: '2026-06-06 22:18', ip: '117.136.*.*', device: 'iPhone 13', risk_level: 'none', topics: ['#樱花', '#春'], status: 'pending' },
+  { id: 'p_87925', type: 'work', title: '加我微信拼豆交流群（看图）', cover: postCovers[4], images: [postCovers[4]], desc: '扫码进群', author_id: 'u_10005', author_nickname: '阿狸的店', create_time: '2026-06-06 20:43', ip: '114.88.*.*', device: 'OPPO Reno 11', risk_level: 'high', risk_tags: ['联系方式', '引流'], topics: [], status: 'pending' },
+  { id: 'p_87926', type: 'work', title: '星空物语 80×80 大作分享', cover: postCovers[5], images: postCovers.slice(0, 5), desc: '80×80 的大作品', author_id: 'u_10006', author_nickname: '星空物语', create_time: '2026-06-06 18:11', ip: '119.123.*.*', device: 'iPhone 15 Pro Max', risk_level: 'none', topics: ['#星空'], status: 'pending' },
+  { id: 'p_87927', type: 'question', title: '第一次做拼豆 求指点', cover: postCovers[6], images: [postCovers[6]], desc: '有什么入门建议？', author_id: 'u_10007', author_nickname: '毛线球', create_time: '2026-06-06 16:32', ip: '111.172.*.*', device: 'iPhone 12', risk_level: 'none', topics: ['#新手'], status: 'pending' },
+  { id: 'p_87928', type: 'work', title: '我的圣诞老人成品', cover: postCovers[7], images: postCovers.slice(0, 4), desc: '送给孩子的礼物', author_id: 'u_10003', author_nickname: '豆豆爱拼', create_time: '2026-06-05 20:11', ip: '113.108.*.*', device: 'Huawei P60', risk_level: 'none', topics: ['#节日', '#圣诞'], status: 'approved' },
+  { id: 'p_87929', type: 'tutorial', title: '如何避免拼豆作品褪色', cover: postCovers[0], images: postCovers.slice(0, 3), desc: '拼豆作品褪色的几个原因...', author_id: 'u_10002', author_nickname: '小红', create_time: '2026-06-05 14:00', ip: '124.230.*.*', device: 'Xiaomi 14', risk_level: 'none', topics: ['#教程'], status: 'approved' }
+]
+
+/* ===== 评论 ===== */
+export const mockComments: Comment[] = [
+  { id: 'c_45210', post_id: 'p_87921', post_title: '给闺蜜的生日礼物 🎁', user_id: 'u_10003', user_nickname: '豆豆爱拼', content: '好好看！', create_time: '2026-06-07 10:00', status: 'pending', risk_level: 'none' },
+  { id: 'c_45211', post_id: 'p_87922', post_title: '拼豆技巧：渐变色的取色思路', user_id: 'u_10006', user_nickname: '星空物语', content: '教程写得很详细！', create_time: '2026-06-07 09:45', status: 'pending', risk_level: 'none' },
+  { id: 'c_45212', post_id: 'p_87924', post_title: '樱花树 50×50 完工啦！', user_id: 'u_10007', user_nickname: '毛线球', content: '太棒了！请问 H12 用的什么色号？', create_time: '2026-06-07 09:30', status: 'pending', risk_level: 'low' },
+  { id: 'c_45213', post_id: 'p_87926', post_title: '星空物语 80×80 大作分享', user_id: 'u_10001', user_nickname: '小美', content: '太震撼了', create_time: '2026-06-07 09:15', status: 'pending', risk_level: 'none' }
+]
+
+/* ===== 模板 ===== */
+export const mockTemplates: Template[] = [
+  { id: 't_001', name: '圣诞老人', cover: postCovers[0], previews: postCovers.slice(0, 3), category_id: '1', category_name: '节日', tags: ['圣诞', '老人'], source: 'official', creator_id: 'sys', creator_name: '系统管理员', board_size: '50×50', color_count: 28, total_beads: 5000, difficulty: 'beginner', style: '写实', duration: '8-10 小时', status: 'approved', submit_time: '2026-06-01', use_count: 1234 },
+  { id: 't_002', name: '皮卡丘', cover: postCovers[1], previews: postCovers.slice(1, 4), category_id: '2', category_name: '卡通', tags: ['宠物小精灵', '黄'], source: 'creator', creator_id: 'u_10006', creator_name: '星空物语', board_size: '60×60', color_count: 35, total_beads: 6800, difficulty: 'intermediate', style: '卡通', duration: '12-15 小时', status: 'pending', submit_time: '2026-06-06', use_count: 0 },
+  { id: 't_003', name: '樱花树', cover: postCovers[2], previews: postCovers.slice(2, 5), category_id: '3', category_name: '风景', tags: ['樱花', '树', '春'], source: 'official', creator_id: 'sys', creator_name: '系统管理员', board_size: '50×50', color_count: 24, total_beads: 4500, difficulty: 'beginner', style: '写意', duration: '6-8 小时', status: 'approved', submit_time: '2026-05-20', use_count: 2341 },
+  { id: 't_004', name: '招财猫', cover: postCovers[3], previews: postCovers.slice(3, 6), category_id: '2', category_name: '卡通', tags: ['猫', '招财'], source: 'creator', creator_id: 'u_10003', creator_name: '豆豆爱拼', board_size: '40×40', color_count: 18, total_beads: 3200, difficulty: 'beginner', style: '卡通', duration: '4-6 小时', status: 'pending', submit_time: '2026-06-07', use_count: 0 },
+  { id: 't_005', name: '玫瑰花', cover: postCovers[4], previews: postCovers.slice(0, 3), category_id: '4', category_name: '花卉', tags: ['玫瑰', '红'], source: 'official', creator_id: 'sys', creator_name: '系统管理员', board_size: '50×50', color_count: 32, total_beads: 5200, difficulty: 'intermediate', style: '写实', duration: '10-12 小时', status: 'approved', submit_time: '2026-04-15', use_count: 892 },
+  { id: 't_006', name: '小熊维尼', cover: postCovers[5], previews: postCovers.slice(1, 4), category_id: '2', category_name: '卡通', tags: ['迪士尼', '小熊'], source: 'creator', creator_id: 'u_10001', creator_name: '小美', board_size: '50×50', color_count: 22, total_beads: 4100, difficulty: 'beginner', style: '卡通', duration: '6-8 小时', status: 'rejected', submit_time: '2026-05-25', use_count: 0 },
+  { id: 't_007', name: '星空', cover: postCovers[6], previews: postCovers.slice(2, 5), category_id: '3', category_name: '风景', tags: ['星空', '夜景'], source: 'official', creator_id: 'sys', creator_name: '系统管理员', board_size: '80×80', color_count: 45, total_beads: 12000, difficulty: 'advanced', style: '抽象', duration: '20-30 小时', status: 'approved', submit_time: '2026-03-12', use_count: 3456 },
+  { id: 't_008', name: '复活节蛋', cover: postCovers[7], previews: postCovers.slice(3, 6), category_id: '1', category_name: '节日', tags: ['复活节', '蛋'], source: 'creator', creator_id: 'u_10004', creator_name: '拼图小子', board_size: '30×30', color_count: 12, total_beads: 1800, difficulty: 'beginner', style: '装饰', duration: '2-3 小时', status: 'offline', submit_time: '2026-02-28', use_count: 567 }
+]
+
+/* ===== 敏感词 ===== */
+export const mockSensitiveWords: SensitiveWord[] = [
+  { id: 'sw_001', word: '习近平', level: 'severe', type: 'political', replacement: '***', hit_count: 12, create_time: '2026-01-01' },
+  { id: 'sw_002', word: '性感荷官', level: 'severe', type: 'porn', replacement: '***', hit_count: 8, create_time: '2026-01-15' },
+  { id: 'sw_003', word: '微信二维码', level: 'medium', type: 'ads', replacement: '[联系方式]', hit_count: 245, create_time: '2026-02-20' },
+  { id: 'sw_004', word: '盗版', level: 'medium', type: 'copyright', replacement: '未经授权', hit_count: 56, create_time: '2026-02-25' },
+  { id: 'sw_005', word: '咒骂词', level: 'minor', type: 'other', replacement: '**', hit_count: 1234, create_time: '2026-03-01' },
+  { id: 'sw_006', word: '赌博', level: 'severe', type: 'other', replacement: '***', hit_count: 4, create_time: '2026-03-10' },
+  { id: 'sw_007', word: '暴力血腥', level: 'severe', type: 'violence', replacement: '***', hit_count: 2, create_time: '2026-03-12' },
+  { id: 'sw_008', word: '拼多多砍一刀', level: 'medium', type: 'ads', replacement: '[其他平台]', hit_count: 78, create_time: '2026-04-01' }
+]
+
+/* ===== 举报 ===== */
+export const mockReports: Report[] = [
+  { id: 'r_001', type: 'spam', target_type: 'post', target_id: 'p_87925', target_summary: '加我微信拼豆交流群（看图）', reporter_id: 'u_10006', reporter_name: '星空物语', reason: '引流广告', create_time: '2026-06-07 09:00', status: 'pending' },
+  { id: 'r_002', type: 'attack', target_type: 'comment', target_id: 'c_45212', target_summary: '...', reporter_id: 'u_10004', reporter_name: '拼图小子', reason: '人身攻击', create_time: '2026-06-07 08:30', status: 'pending' },
+  { id: 'r_003', type: 'infringement', target_type: 'post', target_id: 'p_87924', target_summary: '樱花树 50×50 完工啦！', reporter_id: 'u_10008', reporter_name: '匿名', reason: '盗用我的作品', create_time: '2026-06-07 07:15', status: 'pending' },
+  { id: 'r_004', type: 'violation', target_type: 'user', target_id: 'u_10005', target_summary: '阿狸的店', reporter_id: 'u_10001', reporter_name: '小美', reason: '多次发布广告', create_time: '2026-06-06 22:00', status: 'warned', handler: '李审核', handle_time: '2026-06-06 22:30' }
+]
+
+/* ===== Banner ===== */
+export const mockBanners: Banner[] = [
+  { id: 'b_001', title: '圣诞活动', image: postCovers[0], link_type: 'template', link_url: '/template/123', position: '首页顶部', start_time: '2026-06-01', end_time: '2026-12-31', sort: 1, status: 'visible', click_count: 12345 },
+  { id: 'b_002', title: '新人福利', image: postCovers[1], link_type: 'web', link_url: '/invite', position: '首页顶部', start_time: '2026-01-01', end_time: '2026-12-31', sort: 2, status: 'visible', click_count: 8921 },
+  { id: 'b_003', title: '会员优惠', image: postCovers[2], link_type: 'activity', link_url: '/vip', position: '首页顶部', start_time: '2026-06-01', end_time: '2026-06-30', sort: 3, status: 'hidden', click_count: 5678 },
+  { id: 'b_004', title: '春节拼豆专场', image: postCovers[3], link_type: 'special', link_url: '/special/1', position: '首页顶部', start_time: '2026-01-20', end_time: '2026-02-20', sort: 4, status: 'hidden', click_count: 0 }
+]
+
+/* ===== 话题 ===== */
+export const mockTopics: Topic[] = [
+  { id: 'tp_001', name: '圣诞拼豆挑战', desc: '圣诞主题拼豆作品分享', post_count: 1234, user_count: 567, is_official: true, status: 'active', create_time: '2026-05-01' },
+  { id: 'tp_002', name: '新手第一次', desc: '记录你的第一次拼豆', post_count: 890, user_count: 432, is_official: true, status: 'active', create_time: '2026-04-15' },
+  { id: 'tp_003', name: '拼豆作品展示', desc: '晒出你的作品', post_count: 2345, user_count: 1234, is_official: true, status: 'recommended', create_time: '2026-03-01' },
+  { id: 'tp_004', name: '色号讨论', desc: '色号使用心得分享', post_count: 567, user_count: 234, is_official: false, status: 'active', create_time: '2026-02-20' }
+]
+
+/* ===== 专题 ===== */
+export const mockSpecials: Special[] = [
+  { id: 'sp_001', title: '春节拼豆专场', cover: postCovers[0], desc: '精选春节主题拼豆模板', template_ids: ['t_001', 't_005'], banner_id: 'b_004', status: 'online', create_time: '2026-01-15' },
+  { id: 'sp_002', title: '夏日清凉拼豆', cover: postCovers[3], desc: '清凉夏日主题作品', template_ids: ['t_003'], status: 'offline', create_time: '2026-05-01' }
+]
+
+/* ===== 推送 ===== */
+export const mockPushes: Push[] = [
+  { id: 'ps_001', title: '圣诞活动开始啦', content: '参与活动赢取会员', audience: 'all', audience_label: '全量用户', channels: ['app', 'sms'], scheduled_time: '2026-12-01 10:00', send_time: '2026-12-01 10:00:05', status: 'sent', success_count: 125678, fail_count: 234, click_count: 12345, creator: '林运营' },
+  { id: 'ps_002', title: '会员到期提醒', content: '您的会员即将到期', audience: 'tag', audience_label: '7天内到期', channels: ['app'], scheduled_time: '2026-06-10 09:00', status: 'scheduled', success_count: 0, fail_count: 0, click_count: 0, creator: '张管理员' },
+  { id: 'ps_003', title: '系统升级通知', content: '系统将于今晚 02:00 升级', audience: 'all', audience_label: '全量用户', channels: ['app', 'email'], scheduled_time: '2026-06-08 02:00', status: 'draft', success_count: 0, fail_count: 0, click_count: 0, creator: '系统' }
+]
+
+/* ===== 角色 ===== */
+export const mockRoles: Role[] = [
+  { id: 'r_admin', name: '超级管理员', description: '拥有系统全部权限', permissions: ['*'], user_count: 2, create_time: '2026-01-01' },
+  { id: 'r_ops', name: '运营', description: '运营管理 / 数据统计 / 模板', permissions: ['template', 'operation', 'stats'], user_count: 5, create_time: '2026-01-01' },
+  { id: 'r_audit', name: '审核', description: '内容审核', permissions: ['post.review', 'comment.review', 'sensitive', 'report'], user_count: 8, create_time: '2026-01-01' },
+  { id: 'r_cs', name: '客服', description: '用户管理查看', permissions: ['user.view'], user_count: 12, create_time: '2026-01-01' }
+]
+
+/* ===== 管理员账号 ===== */
+export const mockAdmins: AdminAccount[] = [
+  { id: 'a_001', username: 'admin', nickname: '系统管理员', email: 'admin@pindou.work', role_id: 'r_admin', role_name: '超级管理员', status: 'active', last_login_time: '2026-06-07 09:00', last_login_ip: '123.125.*.*', create_time: '2026-01-01' },
+  { id: 'a_002', username: 'lin_ops', nickname: '林运营', email: 'lin@pindou.work', role_id: 'r_ops', role_name: '运营', status: 'active', last_login_time: '2026-06-07 10:00', last_login_ip: '124.230.*.*', create_time: '2026-01-05' },
+  { id: 'a_003', username: 'li_audit', nickname: '李审核', email: 'li@pindou.work', role_id: 'r_audit', role_name: '审核', status: 'active', last_login_time: '2026-06-07 09:30', last_login_ip: '117.136.*.*', create_time: '2026-01-08' },
+  { id: 'a_004', username: 'chen_cs', nickname: '陈客服', email: 'chen@pindou.work', role_id: 'r_cs', role_name: '客服', status: 'active', last_login_time: '2026-06-06 18:00', last_login_ip: '119.123.*.*', create_time: '2026-01-12' },
+  { id: 'a_005', username: 'zhang_admin', nickname: '张管理员', email: 'zhang@pindou.work', role_id: 'r_admin', role_name: '超级管理员', status: 'active', last_login_time: '2026-06-05 14:00', last_login_ip: '114.88.*.*', create_time: '2026-02-01' }
+]
+
+/* ===== 操作日志 ===== */
+export const mockLogs: OperationLog[] = [
+  { id: 'l_001', user_id: 'a_002', username: '林运营', operation: '审核', content: '通过了帖子 p_87921', ip: '124.230.*.*', params: '{post_id: "p_87921"}', create_time: '2026-06-07 10:32' },
+  { id: 'l_002', user_id: 'a_003', username: '李审核', operation: '审核', content: '拒绝了评论 c_45210', ip: '117.136.*.*', params: '{comment_id: "c_45210", reason: "广告"}', create_time: '2026-06-07 10:30' },
+  { id: 'l_003', user_id: 'a_001', username: '系统管理员', operation: '登录', content: '管理员登录', ip: '123.125.*.*', params: '{}', create_time: '2026-06-07 09:00' },
+  { id: 'l_004', user_id: 'a_005', username: '张管理员', operation: '修改', content: '更新了 Banner b_004', ip: '114.88.*.*', params: '{banner_id: "b_004", status: "hidden"}', create_time: '2026-06-06 16:00' },
+  { id: 'l_005', user_id: 'a_004', username: '陈客服', operation: '重置', content: '重置了用户 u_10021 密码', ip: '119.123.*.*', params: '{user_id: "u_10021"}', create_time: '2026-06-06 14:30' },
+  { id: 'l_006', user_id: 'a_002', username: '林运营', operation: '新增', content: '创建了话题 tp_005', ip: '124.230.*.*', params: '{topic_id: "tp_005"}', create_time: '2026-06-06 11:00' },
+  { id: 'l_007', user_id: 'a_001', username: '系统管理员', operation: '删除', content: '删除了敏感词 sw_009', ip: '123.125.*.*', params: '{word_id: "sw_009"}', create_time: '2026-06-05 18:00' }
+]
+
+/* ===== 会员 ===== */
+export const mockMembers: Member[] = [
+  { id: 'm_001', user_id: 'u_10001', user_nickname: '小美', level: 'VIP1', expire_time: '2026-12-31', auto_renew: true, total_paid: 168, pay_channel: 'appstore', create_time: '2026-01-01' },
+  { id: 'm_002', user_id: 'u_10006', user_nickname: '星空物语', level: 'SVIP', expire_time: '2027-06-07', auto_renew: true, total_paid: 1288, pay_channel: 'wechat', create_time: '2025-12-01' },
+  { id: 'm_003', user_id: 'u_10003', user_nickname: '豆豆爱拼', level: 'VIP2', expire_time: '2026-09-04', auto_renew: true, total_paid: 268, pay_channel: 'wechat', create_time: '2026-02-03' },
+  { id: 'm_004', user_id: 'u_10004', user_nickname: '拼图小子', level: 'VIP1', expire_time: '2026-06-21', auto_renew: false, total_paid: 168, pay_channel: 'appstore', create_time: '2026-03-12' },
+  { id: 'm_005', user_id: 'u_10201', user_nickname: '布丁猫', level: 'VIP1', expire_time: '2026-06-12', auto_renew: true, total_paid: 168, pay_channel: 'alipay', create_time: '2026-02-28' },
+  { id: 'm_006', user_id: 'u_10312', user_nickname: '甜甜圈', level: 'VIP3', expire_time: '2026-12-01', auto_renew: true, total_paid: 588, pay_channel: 'wechat', create_time: '2025-11-12' },
+  { id: 'm_007', user_id: 'u_10421', user_nickname: '小黄鸭', level: 'VIP1', expire_time: '2026-06-09', auto_renew: false, total_paid: 18, pay_channel: 'appstore', create_time: '2026-05-20' }
+]
+
+/* ===== 色号 ===== */
+const palette = [
+  '#FF7A5A', '#F5C45E', '#4FBB8A', '#6FA8D4', '#9A7FCC', '#E07777',
+  '#FFD2B0', '#FFE6DA', '#DEEDF7', '#DAF1E5', '#E8DFF4', '#FBE1E1',
+  '#1F1A16', '#4A3F36', '#8A7E72', '#B0A599', '#FFFFFF', '#2A1F1A',
+  '#E59A3A', '#A86515', '#FFE5B4', '#1F7A4B', '#246E9C', '#6849A6',
+  '#A8331F', '#FBEBD2', '#B83B1B', '#FF9876', '#D4C9B6', '#EFE8DC',
+  '#F7F4EE', '#FAF7F1', '#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3',
+  '#F38181', '#AA96DA', '#A8E6CE', '#FFB6B9', '#FAE3D9', '#BBDED6',
+  '#8B5A3C', '#D2B48C', '#DEB887', '#F5DEB3', '#FFE4C4', '#FFDAB9',
+  '#EEE8AA', '#F0E68C', '#BDB76B', '#F4A460', '#CD853F', '#D2691E',
+  '#8B4513', '#A0522D', '#BC8F8F', '#DDA0DD', '#EE82EE', '#DA70D6',
+  '#FF69B4', '#FF1493', '#C71585', '#DB7093', '#FFB6C1', '#FFC0CB',
+  '#FFA07A', '#FF7F50', '#FF6347', '#FF4500', '#FF8C00', '#FFA500',
+  '#FFD700', '#FFFF00', '#FFFFE0', '#FFFACD', '#FAFAD2', '#FFEFD5',
+  '#FFE4E1', '#FFDAB9', '#FFD2B0', '#FFC0CB', '#FFB6C1', '#FFA07A'
+]
+
+export const mockColors: ColorChip[] = palette.map((hex, i) => {
+  const num = (i + 1).toString().padStart(3, '0')
+  return {
+    id: `c_${num}`,
+    code: `H${num}`,
+    name: ['拼豆橙', '琥珀黄', '薄荷绿', '天空蓝', '紫罗兰', '玫瑰红'][i % 6] + num,
+    hex,
+    rgb: hexToRgb(hex),
+    lab: `${(Math.random() * 100).toFixed(1)},${(Math.random() * 100).toFixed(1)},${(Math.random() * 100).toFixed(1)}`,
+    status: 'active'
+  }
+})
+
+function hexToRgb(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `${r},${g},${b}`
+}
+
+/* ===== 分类 ===== */
+export const mockCategories: Category[] = [
+  { id: '1', name: '节日', template_count: 30, sort: 1, status: 'visible' },
+  { id: '2', name: '卡通', template_count: 28, sort: 2, status: 'visible' },
+  { id: '3', name: '风景', template_count: 22, sort: 3, status: 'visible' },
+  { id: '4', name: '花卉', template_count: 18, sort: 4, status: 'visible' },
+  { id: '5', name: '动物', template_count: 25, sort: 5, status: 'visible' },
+  { id: '6', name: '人物', template_count: 15, sort: 6, status: 'visible' },
+  { id: '7', name: '美食', template_count: 12, sort: 7, status: 'visible' },
+  { id: '8', name: '抽象', template_count: 9, sort: 8, status: 'visible' },
+  { id: '9', name: 'logo', template_count: 6, sort: 9, status: 'hidden' },
+  { id: '10', name: '其他', template_count: 4, sort: 10, status: 'visible' }
+]
+
+/* ===== 标签 ===== */
+export const mockTags: Tag[] = [
+  { id: 'tg_001', name: '圣诞', category_id: '1', category_name: '节日', use_count: 156 },
+  { id: 'tg_002', name: '春节', category_id: '1', category_name: '节日', use_count: 234 },
+  { id: 'tg_003', name: '迪士尼', category_id: '2', category_name: '卡通', use_count: 89 },
+  { id: 'tg_004', name: '猫', category_id: '5', category_name: '动物', use_count: 245 },
+  { id: 'tg_005', name: '樱花', category_id: '3', category_name: '风景', use_count: 167 },
+  { id: 'tg_006', name: '玫瑰', category_id: '4', category_name: '花卉', use_count: 92 },
+  { id: 'tg_007', name: '渐变色', category_id: '2', category_name: '卡通', use_count: 78 }
+]
+
+/* ===== 核心指标 ===== */
+export const mockOverview = {
+  dau: { value: 12567, delta: 5.6, trend: Array.from({ length: 14 }, (_, i) => 10000 + Math.random() * 4000) },
+  new_users: { value: 1234, delta: 12.3, trend: Array.from({ length: 14 }, () => 800 + Math.random() * 600) },
+  active_rate: { value: 45.6, delta: 2.1, trend: Array.from({ length: 14 }, () => 40 + Math.random() * 10) },
+  retention: { value: 38.5, delta: -1.2, trend: Array.from({ length: 14 }, () => 35 + Math.random() * 8) },
+  ai_generation: { value: 5678, delta: 8.9, trend: Array.from({ length: 14 }, () => 4000 + Math.random() * 2500) },
+  posts: { value: 1234, delta: 15.6, trend: Array.from({ length: 14 }, () => 800 + Math.random() * 800) },
+  interactions: { value: 23456, delta: 10.2, trend: Array.from({ length: 14 }, () => 18000 + Math.random() * 8000) },
+  revenue: { value: 12567, delta: 25.3, trend: Array.from({ length: 14 }, () => 8000 + Math.random() * 8000) }
+}
+
+/* ===== 工具：分页 ===== */
+export function paginate<T>(list: T[], page = 1, pageSize = 20, filter?: (item: T) => boolean) {
+  const filtered = filter ? list.filter(filter) : list
+  const total = filtered.length
+  const start = (page - 1) * pageSize
+  return { list: filtered.slice(start, start + pageSize), total, page, page_size: pageSize }
+}
