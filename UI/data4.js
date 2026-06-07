@@ -1,5 +1,6 @@
 // 拼豆 · 移动端原型数据 (第四部分)
-const SCREENS_4 = [
+window.PINDOU = window.PINDOU || {};
+PINDOU.screens4 = [
   {
     id:'template-detail', group:'M4 模板', name:'模板详情', route:'/template/:id',
     desc:'模板详情页：作品大图预览、色号、参数、创作者、同款作品、"按此生成"主按钮。',

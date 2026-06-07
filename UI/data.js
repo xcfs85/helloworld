@@ -1,6 +1,7 @@
 // 拼豆 · 移动端原型数据
 // 20 个核心页面
-const SCREENS = [
+window.PINDOU = window.PINDOU || {};
+PINDOU.screens = [
   {
     id:'splash', group:'启动 / 登录', name:'启动页 / 闪屏', route:'/splash',
     desc:'应用启动时展示品牌 Logo 与 Slogan，1.5s 内自动跳转到登录页或首页。',
@@ -458,4 +459,4 @@ const SCREENS = [
 ];
 
 // 导出加载函数
-if (typeof module !== 'undefined') module.exports = SCREENS;
+if (typeof module !== 'undefined') module.exports = PINDOU.screens;

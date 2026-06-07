@@ -1,5 +1,6 @@
 // 拼豆 · 移动端原型数据 (第二部分)
-const SCREENS_2 = [
+window.PINDOU = window.PINDOU || {};
+PINDOU.screens2 = [
   {
     id:'colors', group:'M5 色号', name:'色号表详情', route:'/create/colors/:id',
     desc:'M5 主页面。展示拼豆图所用全部色号，支持排序、筛选、难度调整、导出。',

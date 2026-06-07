@@ -1,11 +1,12 @@
 // 拼豆 · 移动端原型 · 应用逻辑
 (function(){
   // 合并所有屏幕数据
+  const P = window.PINDOU || {};
   const ALL = [].concat(
-    (typeof SCREENS !== 'undefined' ? SCREENS : []),
-    (typeof SCREENS_2 !== 'undefined' ? SCREENS_2 : []),
-    (typeof SCREENS_3 !== 'undefined' ? SCREENS_3 : []),
-    (typeof SCREENS_4 !== 'undefined' ? SCREENS_4 : [])
+    P.screens || [],
+    P.screens2 || [],
+    P.screens3 || [],
+    P.screens4 || []
   );
   const APP_SCREENS = ALL;
   const GROUPS = {};

@@ -1,5 +1,6 @@
 // 拼豆 · 移动端原型数据 (第三部分)
-const SCREENS_3 = [
+window.PINDOU = window.PINDOU || {};
+PINDOU.screens3 = [
   {
     id:'post-create', group:'M3 论坛', name:'发布帖子', route:'/post/create',
     desc:'4 种帖子类型：作品 / 求图 / 教程 / 讨论。支持图文 / 视频 / 富文本教程。',
