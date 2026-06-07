@@ -1,0 +1,243 @@
+# 系统配置模块概要设计
+
+> **模块**: 后台管理系统 - 系统配置
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 模块概述
+
+### 1.1 功能定位
+
+系统配置模块用于管理APP和系统的各种配置参数，包括通用配置、AI配置、色板配置等。
+
+### 1.2 功能清单
+
+| 功能 | 说明 | 优先级 |
+|------|------|--------|
+| 通用配置 | APP名称/协议/客服等 | P0 |
+| AI配置 | 生成参数/免费次数等 | P1 |
+| 色板配置 | MARD色板/套装定义 | P1 |
+
+---
+
+## 2. 数据设计
+
+### 2.1 核心实体
+
+#### 2.1.1 系统配置 (system_config)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| config_key | VARCHAR(50) | 配置键 | ✓ |
+| config_value | TEXT | 配置值 | ✓ |
+| config_type | VARCHAR(20) | 配置类型 | - |
+| description | VARCHAR(200) | 说明 | - |
+| status | TINYINT | 状态 | ✓ |
+| create_time | DATETIME | 创建时间 | ✓ |
+| update_time | DATETIME | 更新时间 | - |
+
+#### 2.1.2 色号 (mard_color)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| color_no | VARCHAR(20) | 色号 | ✓ |
+| color_name | VARCHAR(50) | 颜色名称 | ✓ |
+| rgb | VARCHAR(10) | RGB值 | ✓ |
+| lab | VARCHAR(50) | Lab值 | - |
+| category | VARCHAR(20) | 分类 | - |
+| is_common | TINYINT | 是否常用 | - |
+| status | TINYINT | 状态 | ✓ |
+| create_time | DATETIME | 创建时间 | ✓ |
+
+#### 2.1.3 耗材套装 (bead_kit)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| kit_id | VARCHAR(20) | 套装ID | ✓ |
+| kit_name | VARCHAR(100) | 套装名称 | ✓ |
+| brand | VARCHAR(20) | 品牌 | ✓ |
+| color_count | INT | 色号数 | ✓ |
+| bead_count | INT | 颗粒数 | ✓ |
+| price | DECIMAL(10,2) | 价格 | ✓ |
+| purchase_url | VARCHAR(500) | 购买链接 | - |
+| status | TINYINT | 状态 | ✓ |
+| create_time | DATETIME | 创建时间 | ✓ |
+
+### 2.2 数据库表结构
+
+```sql
+-- 系统配置表
+CREATE TABLE system_config (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    config_key VARCHAR(50) NOT NULL UNIQUE COMMENT '配置键',
+    config_value TEXT COMMENT '配置值',
+    config_type VARCHAR(20) COMMENT '配置类型 string/number/json/boolean',
+    description VARCHAR(200) COMMENT '说明',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-禁用 1-启用',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_config_key (config_key),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置表';
+
+-- MARD色号表
+CREATE TABLE mard_color (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    color_no VARCHAR(20) NOT NULL UNIQUE COMMENT '色号',
+    color_name VARCHAR(50) NOT NULL COMMENT '颜色名称',
+    rgb VARCHAR(10) NOT NULL COMMENT 'RGB值',
+    lab VARCHAR(50) COMMENT 'Lab值 L;a;b',
+    category VARCHAR(20) COMMENT '分类 red/orange/yellow/green/blue/purple/gray/black/white/special',
+    is_common TINYINT DEFAULT 0 COMMENT '是否常用',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-禁用 1-启用',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_color_no (color_no),
+    INDEX idx_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='MARD色号表';
+
+-- 耗材套装表
+CREATE TABLE bead_kit (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    kit_id VARCHAR(20) NOT NULL UNIQUE COMMENT '套装ID',
+    kit_name VARCHAR(100) NOT NULL COMMENT '套装名称',
+    brand VARCHAR(20) NOT NULL DEFAULT 'MARD' COMMENT '品牌',
+    color_count INT NOT NULL COMMENT '色号数',
+    bead_count INT NOT NULL COMMENT '颗粒数',
+    price DECIMAL(10,2) NOT NULL COMMENT '价格',
+    purchase_url VARCHAR(500) COMMENT '购买链接',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-下架 1-上架',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_kit_id (kit_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='耗材套装表';
+```
+
+---
+
+## 3. 接口设计
+
+### 3.1 配置接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 获取配置 | GET | /api/admin/v1/config/get | 获取配置 |
+| 设置配置 | POST | /api/admin/v1/config/set | 设置配置 |
+| 配置列表 | GET | /api/admin/v1/config/list | 配置列表 |
+
+### 3.2 色板接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 色号列表 | GET | /api/admin/v1/color/list | 色号列表 |
+| 新增色号 | POST | /api/admin/v1/color | 新增色号 |
+| 修改色号 | PUT | /api/admin/v1/color/{id} | 修改色号 |
+| 删除色号 | DELETE | /api/admin/v1/color/{id} | 删除色号 |
+
+### 3.3 套装接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 套装列表 | GET | /api/admin/v1/kit/list | 套装列表 |
+| 新增套装 | POST | /api/admin/v1/kit | 新增套装 |
+| 修改套装 | PUT | /api/admin/v1/kit/{id} | 修改套装 |
+| 删除套装 | DELETE | /api/admin/v1/kit/{id} | 删除套装 |
+| 推荐规则 | GET | /api/admin/v1/kit/rule | 推荐规则 |
+| 设置推荐规则 | POST | /api/admin/v1/kit/rule | 设置推荐规则 |
+
+### 3.4 配置项说明
+
+#### 3.4.1 通用配置
+
+| 配置键 | 类型 | 说明 | 默认值 |
+|--------|------|------|--------|
+| app_name | string | APP名称 | 拼豆 |
+| user_agreement | string | 用户协议内容 | - |
+| privacy_policy | string | 隐私政策内容 | - |
+| customer_service | string | 客服联系方式 | - |
+| copyright | string | 版权声明 | - |
+| comment_enabled | boolean | 评论开关 | true |
+| sensitive_filter | boolean | 敏感词过滤 | true |
+
+#### 3.4.2 AI配置
+
+| 配置键 | 类型 | 说明 | 默认值 |
+|--------|------|------|--------|
+| default_bead_count | number | 默认粒数 | 3000 |
+| default_difficulty | string | 默认难度 | normal |
+| default_style | string | 默认风格 | realistic |
+| free_daily_generations | number | 免费用户每日生成次数 | 3 |
+| generation_timeout | number | 生成超时时间(秒) | 120 |
+| retry_times | number | 失败重试次数 | 1 |
+| max_image_size | number | 图片最大MB | 20 |
+
+---
+
+## 4. 页面设计
+
+### 4.1 页面清单
+
+| 页面 | 路由 | 说明 |
+|------|------|------|
+| 通用配置 | /config/general | 通用配置 |
+| AI配置 | /config/ai | AI配置 |
+| 色板管理 | /config/color | 色板管理 |
+| 套装管理 | /config/kit | 套装管理 |
+
+### 4.2 配置页面
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ 系统配置 - 通用配置                                         │
+├────────────────────────────────────────────────────────────┤
+│ [APP设置]                                                  │
+│ APP名称: [拼豆                              ]              │
+│ 版权声明: [                               ]              │
+│                                                            │
+│ [协议设置]                                                 │
+│ 用户协议: [编辑]                                          │
+│ 隐私政策: [编辑]                                          │
+│                                                            │
+│ [功能开关]                                                 │
+│ ○ 评论功能: 开启 / 关闭                                    │
+│ ○ 敏感词过滤: 开启 / 关闭                                  │
+│                                                            │
+│ [保存配置]                                                 │
+└────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. 验收标准
+
+### 5.1 功能验收
+
+- [ ] 配置获取正常
+- [ ] 配置保存正常
+- [ ] 色号增删改查正常
+- [ ] 套装增删改查正常
+
+### 5.2 数据验收
+
+- [ ] 配置生效正确
+- [ ] 色号数据准确
+- [ ] 套装推荐正确
+
+---
+
+## 6. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v0.1 | 2026-06-07 | 初稿 |
+
+---
+
+*系统配置模块概要设计结束*

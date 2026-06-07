@@ -1,0 +1,184 @@
+# 数据统计模块概要设计
+> **模块**: 后台管理系统 - 数据统计
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 模块概述
+
+### 1.1 功能定位
+
+数据统计模块用于展示系统核心运营数据，提供用户分析、创作分析、社区分析等统计功能，支撑运营决策。
+
+### 1.2 功能清单
+
+| 功能 | 说明 | 优先级 |
+|------|------|--------|
+| 核心指标看板 | DAU/新增/生成次数等核心指标 | P0 |
+| 用户分析 | 用户增长/画像/登录方式 | P1 |
+| 创作分析 | 生成量/参数分布/导出率 | P1 |
+| 社区分析 | 帖子/互动/话题热度 | P1 |
+
+---
+
+## 2. 数据设计
+
+### 2.1 核心实体
+
+#### 2.1.1 日统计数据 (daily_stats)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| stat_date | DATE | 统计日期 | ✓ |
+| dau | INT | 活跃用户数 | - |
+| new_user_count | INT | 新增用户数 | - |
+| generation_count | INT | AI生成次数 | - |
+| post_count | INT | 帖子发布数 | - |
+| comment_count | INT | 评论数 | - |
+| like_count | INT | 点赞数 | - |
+| share_count | INT | 分享数 | - |
+| member_order_count | INT | 会员订单数 | - |
+| member_revenue | DECIMAL(10,2) | 会员收入 | - |
+| create_time | DATETIME | 创建时间 | ✓ |
+
+### 2.2 数据库表结构
+
+```sql
+-- 日统计数据表
+CREATE TABLE daily_stats (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    stat_date DATE NOT NULL UNIQUE COMMENT '统计日期',
+    dau INT DEFAULT 0 COMMENT '活跃用户数',
+    new_user_count INT DEFAULT 0 COMMENT '新增用户数',
+    retention_1d DECIMAL(5,2) COMMENT '次日留存率',
+    retention_7d DECIMAL(5,2) COMMENT '7日留存率',
+    retention_30d DECIMAL(5,2) COMMENT '30日留存率',
+    generation_count INT DEFAULT 0 COMMENT 'AI生成次数',
+    avg_bead_count INT DEFAULT 0 COMMENT '平均粒数',
+    avg_color_count INT DEFAULT 0 COMMENT '平均色号数',
+    export_count INT DEFAULT 0 COMMENT '导出次数',
+    post_count INT DEFAULT 0 COMMENT '帖子发布数',
+    work_count INT DEFAULT 0 COMMENT '作品帖数',
+    tutorial_count INT DEFAULT 0 COMMENT '教程帖数',
+    comment_count INT DEFAULT 0 COMMENT '评论数',
+    like_count INT DEFAULT 0 COMMENT '点赞数',
+    share_count INT DEFAULT 0 COMMENT '分享数',
+    favorite_count INT DEFAULT 0 COMMENT '收藏数',
+    member_order_count INT DEFAULT 0 COMMENT '会员订单数',
+    member_revenue DECIMAL(10,2) DEFAULT 0 COMMENT '会员收入',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_stat_date (stat_date),
+    INDEX idx_stat_date (stat_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='日统计数据表';
+```
+
+---
+
+## 3. 接口设计
+
+### 3.1 统计接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 核心指标 | GET | /api/admin/v1/stats/overview | 获取核心指标 |
+| 用户统计 | GET | /api/admin/v1/stats/user | 获取用户统计 |
+| 创作统计 | GET | /api/admin/v1/stats/creation | 获取创作统计 |
+| 社区统计 | GET | /api/admin/v1/stats/community | 获取社区统计 |
+| 趋势数据 | GET | /api/admin/v1/stats/trend | 获取趋势数据 |
+| 导出报表 | GET | /api/admin/v1/stats/export | 导出统计报表 |
+
+### 3.2 接口详情
+
+#### 3.2.1 核心指标接口
+
+```json
+GET /api/admin/v1/stats/overview?date_type=today
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "dau": 12567,
+        "dau_change": 5.6,
+        "new_user_count": 1234,
+        "new_user_change": 12.3,
+        "retention_1d": 38.5,
+        "retention_1d_change": -1.2,
+        "generation_count": 5678,
+        "generation_change": 8.9,
+        "post_count": 1234,
+        "post_change": 15.6,
+        "interaction_count": 23456,
+        "interaction_change": 10.2,
+        "member_revenue": 12567.00,
+        "revenue_change": 25.3
+    }
+}
+```
+
+---
+
+## 4. 页面设计
+
+### 4.1 页面清单
+
+| 页面 | 路由 | 说明 |
+|------|------|------|
+| 核心指标 | /stats/overview | 数据看板 |
+| 用户分析 | /stats/user | 用户分析 |
+| 创作分析 | /stats/creation | 创作分析 |
+| 社区分析 | /stats/community | 社区分析 |
+
+### 4.2 核心指标页面
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 核心指标                                            今日/本周/月 │
+├─────────────────────────────────────────────────────────────────┤
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
+│ │ DAU      │ │ 新增用户 │ │ 活跃率   │ │ 次日留存 │           │
+│ │  12,567  │ │  1,234   │ │  45.6%   │ │  38.5%   │           │
+│ │  ↑5.6%   │ │  ↑12.3%  │ │  ↑2.1%   │ │  ↓1.2%   │           │
+│ └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
+│                                                                 │
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
+│ │ 生成次数 │ │ 帖子数   │ │ 互动量   │ │ 会员收入 │           │
+│ │  5,678   │ │  1,234   │ │  23,456  │ │ ¥12,567  │           │
+│ │  ↑8.9%   │ │  ↑15.6%  │ │  ↑10.2%  │ │  ↑25.3%  │           │
+│ └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
+├─────────────────────────────────────────────────────────────────┤
+│ [趋势图: DAU/生成次数/帖子数 折线图]                             │
+│ ~~~~~ ~~~~~ ~~~~~ ~~~~~ ~~~~~ ~~~~~                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. 验收标准
+
+### 5.1 功能验收
+
+- [ ] 核心指标展示正常
+- [ ] 趋势图展示正常
+- [ ] 日期筛选正常
+- [ ] 数据导出正常
+
+### 5.2 数据验收
+
+- [ ] 统计数据计算正确
+- [ ] 同比/环比计算正确
+
+---
+
+## 6. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v0.1 | 2026-06-07 | 初稿 |
+
+---
+
+*数据统计模块概要设计结束*

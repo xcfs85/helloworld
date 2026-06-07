@@ -1,0 +1,280 @@
+# 运营管理模块概要设计
+> **模块**: 后台管理系统 - 运营管理
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 模块概述
+
+### 1.1 功能定位
+
+运营管理模块用于配置APP运营内容，包括Banner管理、话题管理、专题管理、消息推送等。
+
+### 1.2 功能清单
+
+| 功能 | 说明 | 优先级 |
+|------|------|--------|
+| Banner管理 | 首页Banner配置 | P0 |
+| 话题管理 | 话题创建/编辑/关闭 | P1 |
+| 专题管理 | 节日/活动专题配置 | P1 |
+| 推送管理 | 系统消息推送 | P1 |
+
+---
+
+## 2. 数据设计
+
+### 2.1 核心实体
+
+#### 2.1.1 Banner (banner)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| title | VARCHAR(100) | 标题 | ✓ |
+| image_url | VARCHAR(500) | 图片URL | ✓ |
+| link_type | VARCHAR(20) | 链接类型 | ✓ |
+| link_url | VARCHAR(500) | 跳转链接 | - |
+| link_param | VARCHAR(200) | 跳转参数 | - |
+| position | VARCHAR(20) | 位置编码 | ✓ |
+| sort | INT | 排序 | - |
+| start_time | DATETIME | 上线时间 | ✓ |
+| end_time | DATETIME | 下线时间 | ✓ |
+| status | TINYINT | 状态 | ✓ |
+| create_By | BIGINT | 创建人 | - |
+| create_time | DATETIME | 创建时间 | ✓ |
+
+#### 2.1.2 话题 (topic)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| topic_id | VARCHAR(20) | 话题唯一ID | ✓ |
+| name | VARCHAR(100) | 话题名称 | ✓ |
+| description | VARCHAR(500) | 描述 | - |
+| cover_url | VARCHAR(500) | 封面图 | - |
+| is_official | TINYINT | 是否官方 | - |
+| status | VARCHAR(20) | 状态 | ✓ |
+| post_count | INT | 帖子数 | - |
+| participant_count | INT | 参与人数 | - |
+| create_time | DATETIME | 创建时间 | ✓ |
+
+#### 2.1.3 专题 (topic)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| name | VARCHAR(100) | 专题名称 | ✓ |
+| description | VARCHAR(500) | 描述 | - |
+| cover_url | VARCHAR(500) | 封面图 | ✓ |
+| template_ids | VARCHAR(500) | 关联模板ID | - |
+| start_time | DATETIME | 上线时间 | ✓ |
+| end_time | DATETIME | 下线时间 | ✓ |
+| status | TINYINT | 状态 | ✓ |
+| create_time | DATETIME | 创建时间 | ✓ |
+
+#### 2.1.4 推送记录 (push_record)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| push_id | VARCHAR(20) | 推送ID | ✓ |
+| title | VARCHAR(100) | 标题 | ✓ |
+| content | TEXT | 内容 | ✓ |
+| push_type | VARCHAR(20) | 推送类型 | ✓ |
+| target_type | VARCHAR(20) | 推送对象 | ✓ |
+| target_param | VARCHAR(200) | 目标参数 | - |
+| schedule_time | DATETIME | 定时发送时间 | - |
+| send_time | DATETIME | 实际发送时间 | - |
+| total_count | INT | 推送总数 | - |
+| success_count | INT | 成功数 | - |
+| click_count | INT | 点击数 | - |
+| status | VARCHAR(20) | 状态 | ✓ |
+| create_time | DATETIME | 创建时间 | ✓ |
+
+### 2.2 数据库表结构
+
+```sql
+-- Banner表
+CREATE TABLE banner (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(100) NOT NULL COMMENT '标题',
+    image_url VARCHAR(500) NOT NULL COMMENT '图片URL',
+    link_type VARCHAR(20) NOT NULL COMMENT '链接类型 template/topic/web/activity',
+    link_url VARCHAR(500) COMMENT '跳转链接',
+    link_param VARCHAR(200) COMMENT '跳转参数',
+    position VARCHAR(20) NOT NULL COMMENT '位置编码 home_top/template_top',
+    sort INT DEFAULT 0 COMMENT '排序',
+    start_time DATETIME NOT NULL COMMENT '上线时间',
+    end_time DATETIME NOT NULL COMMENT '下线时间',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-禁用 1-启用',
+    create_by BIGINT COMMENT '创建人',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_position (position),
+    INDEX idx_status (status),
+    INDEX idx_start_time (start_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Banner表';
+
+-- 话题表
+CREATE TABLE topic (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    topic_id VARCHAR(20) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL COMMENT '话题名称',
+    description VARCHAR(500) COMMENT '描述',
+    cover_url VARCHAR(500) COMMENT '封面图',
+    is_official TINYINT DEFAULT 0 COMMENT '是否官方',
+    status VARCHAR(20) NOT NULL DEFAULT 'active' COMMENT '状态 active/closed',
+    post_count INT DEFAULT 0 COMMENT '帖子数',
+    participant_count INT DEFAULT 0 COMMENT '参与人数',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_status (status),
+    INDEX idx_is_official (is_official)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='话题表';
+
+-- 专题表
+CREATE TABLE special_topic (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL COMMENT '专题名称',
+    description VARCHAR(500) COMMENT '描述',
+    cover_url VARCHAR(500) NOT NULL COMMENT '封面图',
+    template_ids VARCHAR(500) COMMENT '关联模板ID,逗号分隔',
+    start_time DATETIME NOT NULL COMMENT '上线时间',
+    end_time DATETIME NOT NULL COMMENT '下线时间',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-下架 1-上架',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_status (status),
+    INDEX idx_start_time (start_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='专题表';
+
+-- 推送记录表
+CREATE TABLE push_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    push_id VARCHAR(20) NOT NULL UNIQUE,
+    title VARCHAR(100) NOT NULL,
+    content TEXT NOT NULL,
+    push_type VARCHAR(20) NOT NULL COMMENT '系统消息/活动通知',
+    target_type VARCHAR(20) NOT NULL COMMENT 'all/tag/user',
+    target_param VARCHAR(200) COMMENT '目标参数',
+    schedule_time DATETIME COMMENT '定时发送时间',
+    send_time DATETIME COMMENT '实际发送时间',
+    total_count INT DEFAULT 0 COMMENT '推送总数',
+    success_count INT DEFAULT 0 COMMENT '成功数',
+    click_count INT DEFAULT 0 COMMENT '点击数',
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' COMMENT 'pending/sending/sent/failed',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_status (status),
+    INDEX idx_schedule_time (schedule_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='推送记录表';
+```
+
+---
+
+## 3. 接口设计
+
+### 3.1 Banner接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| Banner列表 | GET | /api/admin/v1/banner/list | 获取Banner列表 |
+| 新增Banner | POST | /api/admin/v1/banner | 新增Banner |
+| 修改Banner | PUT | /api/admin/v1/banner/{id} | 修改Banner |
+| 删除Banner | DELETE | /api/admin/v1/banner/{id} | 删除Banner |
+| Banner排序 | POST | /api/admin/v1/banner/sort | 排序 |
+
+### 3.2 话题接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 话题列表 | GET | /api/admin/v1/topic/list | 获取话题列表 |
+| 话题详情 | GET | /api/admin/v1/topic/{id} | 获取话题详情 |
+| 新增话题 | POST | /api/admin/v1/topic | 新增话题 |
+| 修改话题 | PUT | /api/admin/v1/topic/{id} | 修改话题 |
+| 关闭话题 | POST | /api/admin/v1/topic/{id}/close | 关闭话题 |
+
+### 3.3 专题接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 专题列表 | GET | /api/admin/v1/special-topic/list | 获取专题列表 |
+| 专题详情 | GET | /api/admin/v1/special-topic/{id} | 获取专题详情 |
+| 新增专题 | POST | /api/admin/v1/special-topic | 新增专题 |
+| 修改专题 | PUT | /api/admin/v1/special-topic/{id} | 修改专题 |
+| 删除专题 | DELETE | /api/admin/v1/special-topic/{id} | 删除专题 |
+
+### 3.4 推送接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 推送列表 | GET | /api/admin/v1/push/list | 获取推送列表 |
+| 推送详情 | GET | /api/admin/v1/push/{id} | 获取推送详情 |
+| 发送推送 | POST | /api/admin/v1/push/send | 发送推送 |
+| 定时推送 | POST | /api/admin/v1/push/schedule | 定时推送 |
+
+---
+
+## 4. 页面设计
+
+### 4.1 页面清单
+
+| 页面 | 路由 | 说明 |
+|------|------|------|
+| Banner管理 | /operation/banner | Banner配置 |
+| 话题管理 | /operation/topic | 话题配置 |
+| 专题管理 | /operation/special-topic | 专题配置 |
+| 推送管理 | /operation/push | 消息推送 |
+
+### 4.2 Banner页面
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ Banner管理                                                     │
+├────────────────────────────────────────────────────────────────┤
+│ 位置: 首页顶部                                                  │
+├────────────────────────────────────────────────────────────────┤
+│ [添加Banner]                                                   │
+├────────────────────────────────────────────────────────────────┤
+│ 排序 │ 图片          │ 标题        │ 链接          │ 状态 │ 操作 │
+│ 1    │ [banner1]    │ 圣诞活动    │ /template/xxx │ 显示 │ 排序 │
+│ 2    │ [banner2]    │ 新人福利    │ /invite       │ 显示 │ 排序 │
+│ 3    │ [banner3]    │ 会员优惠    │ /vip          │ 隐藏 │ 排序 │
+├────────────────────────────────────────────────────────────────┤
+│ 总计: 3  条  显示: 2  │ 隐藏: 1                            │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. 验收标准
+
+### 5.1 功能验收
+
+- [ ] Banner增删改查正常
+- [ ] Banner排序正常
+- [ ] 话题增删改查正常
+- [ ] 话题关闭/开启正常
+- [ ] 专题增删改查正常
+- [ ] 推送发送正常
+- [ ] 定时推送正常
+
+### 5.2 运营配置
+
+- [ ] Banner位置配置正确
+- [ ] 话题状态同步正确
+- [ ] 推送统计数据准确
+
+---
+
+## 6. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v0.1 | 2026-06-07 | 初稿 |
+
+---
+
+*运营管理模块概要设计结束*

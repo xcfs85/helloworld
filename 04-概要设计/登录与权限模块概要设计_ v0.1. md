@@ -1,0 +1,388 @@
+# 登录与权限模块概要设计
+
+> **模块**: 后台管理系统 - 登录与权限
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 模块概述
+
+### 1.1 功能定位
+
+登录与权限模块是后台管理系统的基础模块，提供管理员账号登录、身份认证、权限控制和操作审计功能。
+
+### 1.2 功能清单
+
+| 功能 | 说明 | 优先级 |
+|------|------|--------|
+| 账号密码登录 | 管理员账号+密码+验证码登录 | P0 |
+| 验证码登录 | 密码错误3次后触发验证码 | P0 |
+| Token认证 | JWT Token身份认证 | P0 |
+| 账号登出 | 清除Token，记录登出时间 | P0 |
+| 角色管理 | 超级管理员/运营/审核/客服 | P1 |
+| 权限配置 | 菜单权限+数据权限 | P1 |
+| 账号管理 | 增删改查管理员账号 | P1 |
+| 操作日志 | 记录所有操作行为 | P1 |
+
+---
+
+## 2. 业务流程
+
+### 2.1 登录流程
+
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│  登录页面    │────▶│  验证输入    │────▶│  验证账号    │
+└──────────────┘     └──────────────┘     └──────────────┘
+                                                  │
+                    ┌──────────────┐              │
+                    │  登录成功    │◀─────────────┤
+                    └──────────────┘              │
+                           │                      │ 验证失败
+                           ▼                      │
+                    ┌──────────────┐     ┌──────────────┐
+                    │  生成Token   │     │  返回错误    │
+                    └──────────────┘     └──────────────┘
+```
+
+### 2.2 权限验证流程
+
+```
+请求 ──▶ Token解析 ──▶ 获取用户角色 ──▶ 验证权限 ──▶ 通过/拒绝
+```
+
+---
+
+## 3. 数据设计
+
+### 3.1 核心实体
+
+#### 3.1.1 管理员账号 (admin_user)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| username | VARCHAR(50) | 用户名，唯一 | ✓ |
+| password | VARCHAR(255) | 密码(MD5+盐加密) | ✓ |
+| nickname | VARCHAR(50) | 昵称 | ✓ |
+| role_id | BIGINT | 角色ID | ✓ |
+| status | TINYINT | 状态：0-禁用 1-正常 | ✓ |
+| last_login_time | DATETIME | 最后登录时间 | - |
+| last_login_ip | VARCHAR(50) | 最后登录IP | - |
+| create_by | BIGINT | 创建人ID | - |
+| create_time | DATETIME | 创建时间 | ✓ |
+| update_time | DATETIME | 更新时间 | - |
+
+#### 3.1.2 角色 (role)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| name | VARCHAR(50) | 角色名称 | ✓ |
+| code | VARCHAR(50) | 角色编码，唯一 | ✓ |
+| description | VARCHAR(255) | 角色描述 | - |
+| permissions | TEXT | 权限JSON | - |
+| create_time | DATETIME | 创建时间 | ✓ |
+| update_time | DATETIME | 更新时间 | - |
+
+#### 3.1.3 操作日志 (operation_log)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| user_id | BIGINT | 操作人ID | ✓ |
+| username | VARCHAR(50) | 操作人用户名 | ✓ |
+| nickname | VARCHAR(50) | 操作人昵称 | - |
+| operation | VARCHAR(50) | 操作类型 | ✓ |
+| content | VARCHAR(500) | 操作内容 | - |
+| method | VARCHAR(200) | 请求方法 | - |
+| params | TEXT | 请求参数(脱敏) | - |
+| ip | VARCHAR(50) | IP地址 | - |
+| user_agent | VARCHAR(500) | 用户代理 | - |
+| create_time | DATETIME | 操作时间 | ✓ |
+
+### 3.2 数据库表结构
+
+```sql
+-- 管理员账号表
+CREATE TABLE admin_user (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    username VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名',
+    password VARCHAR(255) NOT NULL COMMENT '密码',
+    nickname VARCHAR(50) NOT NULL COMMENT '昵称',
+    role_id BIGINT NOT NULL COMMENT '角色ID',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-禁用 1-正常',
+    last_login_time DATETIME COMMENT '最后登录时间',
+    last_login_ip VARCHAR(50) COMMENT '最后登录IP',
+    create_by BIGINT COMMENT '创建人ID',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_username (username),
+    INDEX idx_role_id (role_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理员账号表';
+
+-- 角色表
+CREATE TABLE role (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    name VARCHAR(50) NOT NULL COMMENT '角色名称',
+    code VARCHAR(50) NOT NULL UNIQUE COMMENT '角色编码',
+    description VARCHAR(255) COMMENT '角色描述',
+    permissions TEXT COMMENT '权限JSON',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_code (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
+
+-- 操作日志表
+CREATE TABLE operation_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    user_id BIGINT NOT NULL COMMENT '操作人ID',
+    username VARCHAR(50) NOT NULL COMMENT '操作人用户名',
+    nickname VARCHAR(50) COMMENT '操作人昵称',
+    operation VARCHAR(50) NOT NULL COMMENT '操作类型',
+    content VARCHAR(500) COMMENT '操作内容',
+    method VARCHAR(200) COMMENT '请求方法',
+    params TEXT COMMENT '请求参数',
+    ip VARCHAR(50) COMMENT 'IP地址',
+    user_agent VARCHAR(500) COMMENT '用户代理',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+    INDEX idx_user_id (user_id),
+    INDEX idx_operation (operation),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
+```
+
+---
+
+## 4. 接口设计
+
+### 4.1 接口清单
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 获取验证码 | GET | /api/admin/v1/auth/captcha | 获取图形验证码 |
+| 登录 | POST | /api/admin/v1/auth/login | 账号密码登录 |
+| 登出 | POST | /api/admin/v1/auth/logout | 账号登出 |
+| 刷新Token | POST | /api/admin/v1/auth/refresh | 刷新Token |
+| 获取当前用户 | GET | /api/admin/v1/auth/current | 获取当前登录用户 |
+
+### 4.2 角色权限接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 角色列表 | GET | /api/admin/v1/role/list | 获取角色列表 |
+| 角色详情 | GET | /api/admin/v1/role/{id} | 获取角色详情 |
+| 新增角色 | POST | /api/admin/v1/role | 新增角色 |
+| 修改角色 | PUT | /api/admin/v1/role/{id} | 修改角色 |
+| 删除角色 | DELETE | /api/admin/v1/role/{id} | 删除角色 |
+| 账号列表 | GET | /api/admin/v1/admin/list | 获取账号列表 |
+| 账号详情 | GET | /api/admin/v1/admin/{id} | 获取账号详情 |
+| 新增账号 | POST | /api/admin/v1/admin | 新增账号 |
+| 修改账号 | PUT | /api/admin/v1/admin/{id} | 修改账号 |
+| 删除账号 | DELETE | /api/admin/v1/admin/{id} | 删除账号 |
+| 重置密码 | POST | /api/admin/v1/admin/{id}/reset-password | 重置密码 |
+
+### 4.3 日志接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 日志列表 | GET | /api/admin/v1/log/list | 获取操作日志列表 |
+| 日志详情 | GET | /api/admin/v1/log/{id} | 获取日志详情 |
+
+### 4.4 接口详情
+
+#### 4.4.1 登录接口
+
+```
+POST /api/admin/v1/auth/login
+Request:
+{
+    "username": "admin",
+    "password": "e10adc3949ba59abbe56e057f20f883e",  // MD5加密
+    "captcha": "abc123",   // 验证码，密码错误3次后必填
+    "captcha_key": "xxx"   // 验证码key
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success",
+    "data": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "expire_time": "2026-06-14 10:00:00",
+        "user": {
+            "id": 1,
+            "username": "admin",
+            "nickname": "系统管理员",
+            "role_id": 1,
+            "role_name": "超级管理员"
+        }
+    }
+}
+```
+
+#### 4.4.2 角色权限结构
+
+```json
+{
+    "menu_permissions": [
+        "user:view", "user:add", "user:edit", "user:delete",
+        "content:view", "content:approve", "content:reject",
+        "template:view", "template:review", "template:add",
+        "operation:view", "operation:add", "operation:edit",
+        "stats:view",
+        "config:view", "config:edit"
+    ],
+    "data_permissions": {
+        "scope": "all",  // all-全部数据, dept-部门数据, self-仅自己
+        "dept_ids": []
+    }
+}
+```
+
+---
+
+## 5. 页面设计
+
+### 5.1 页面清单
+
+| 页面 | 路由 | 说明 |
+|------|------|------|
+| 登录页 | /login | 登录页面 |
+| 首页 | /home | 首页仪表盘 |
+| 账号管理 | /system/admin | 管理员账号列表 |
+| 账号新增/编辑 | /system/admin/edit | 账号表单 |
+| 角色管理 | /system/role | 角色列表 |
+| 角色新增/编辑 | /system/role/edit | 角色表单 |
+| 操作日志 | /system/log | 操作日志列表 |
+
+### 5.2 登录页面
+
+```┌─────────────────────────────────────────────────────┐
+│                    登录                               │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│              [LOGO] 拼豆后台管理系统                 │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │ 用户名                                        │   │
+│  └─────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────┐   │
+│  │ 密码                                          │   │
+│  └─────────────────────────────────────────────┘   │
+│  ┌───────────────────────┐ ┌──────────────────┐   │
+│  │ 验证码                 │ │ [图片验证码]     │   │
+│  └───────────────────────┘ └──────────────────┘   │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │               登 录                          │   │
+│  └─────────────────────────────────────────────┘   │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 6. 角色权限设计
+
+### 6.1 角色定义
+
+| 角色 | 编码 | 权限范围 |
+|------|------|----------|
+| 超级管理员 | super_admin | 全部权限 |
+| 运营 | operator | 用户查看、模板管理、运营管理、数据统计 |
+| 审核 | reviewer | 内容审核、模板审核 |
+| 客服 | customer_service | 内容查看、举报处理 |
+
+### 6.2 权限矩阵
+
+| 功能 | 超级管理员 | 运营 | 审核 | 客服 |
+|------|------------|------|------|------|
+| 用户管理-查看 | ✓ | ✓ | - | - |
+| 用户管理-操作 | ✓ | - | - | - |
+| 帖子审核 | ✓ | - | ✓ | - |
+| 评论审核 | ✓ | - | ✓ | - |
+| 敏感词管理 | ✓ | - | - | - |
+| 模板管理 | ✓ | ✓ | ✓ | - |
+| Banner管理 | ✓ | ✓ | - | - |
+| 话题管理 | ✓ | ✓ | - | - |
+| 推送管理 | ✓ | ✓ | - | - |
+| 数据统计 | ✓ | ✓ | - | - |
+| 系统配置 | ✓ | - | - | - |
+| 账号管理 | ✓ | - | - | - |
+| 角色权限 | ✓ | - | - | - |
+
+---
+
+## 7. 安全设计
+
+### 7.1 密码策略
+
+- 密码存储：MD5+盐加密
+- 密码复杂度：至少6位字符
+- 密码错误：连续5次错误锁定账号15分钟
+- 密码找回：超级管理员重置
+
+### 7.2 Token策略
+
+- Token类型：JWT
+- 有效期：7天
+- 刷新机制：过期前自动刷新
+- 多设备登录：支持同一账号多处登录
+
+### 7.3 日志策略
+
+- 记录所有写操作
+- 敏感参数脱敏处理（如密码）
+- 日志保留180天
+- 定期归档
+
+---
+
+## 8. 异常处理
+
+| 场景 | 处理 |
+|------|------|
+| 用户名不存在 | 返回"用户名或密码错误" |
+| 密码错误 | 累计错误次数，3次后显示验证码 |
+| 账号禁用 | 返回"账号已被禁用，请联系管理员" |
+| 验证码错误 | 返回"验证码错误，请重新输入" |
+| Token过期 | 返回401，引导重新登录 |
+| 无权限 | 返回403，提示"无操作权限" |
+
+---
+
+## 9. 验收标准
+
+### 9.1 功能验收
+
+- [ ] 账号密码登录正常
+- [ ] 验证码登录正常
+- [ ] Token自动刷新正常
+- [ ] 登出功能正常
+- [ ] 角色增删改查正常
+- [ ] 账号增删改查正常
+- [ ] 权限控制生效
+- [ ] 操作日志记录完整
+
+### 9.2 安全验收
+
+- [ ] 密码加密存储
+- [ ] 错误次数限制
+- [ ] Token验证正常
+- [ ] 权限控制生效
+
+---
+
+## 10. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v0.1 | 2026-06-07 | 初稿 |
+
+---
+
+*登录与权限模块概要设计结束*

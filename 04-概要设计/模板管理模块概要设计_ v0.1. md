@@ -1,0 +1,376 @@
+# 模板管理模块概要设计
+> **模块**: 后台管理系统 - 模板管理
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 模块概述
+
+### 1.1 功能定位
+
+模板管理模块用于管理经典拼图模板，支持模板审核、分类管理、标签管理，维护模板库内容质量。
+
+### 1.2 功能清单
+
+| 功能 | 说明 | 优先级 |
+|------|------|--------|
+| 模板列表 | 查看模板列表，支持筛选 | P0 |
+| 模板详情 | 查看模板详情信息 | P0 |
+| 模板审核 | 审核用户投稿，通过/拒绝 | P0 |
+| 分类管理 | 模板分类增删改查 | P1 |
+| 标签管理 | 模板标签增删改查 | P1 |
+| 模板新增 | 后台手动新增模板 | P2 |
+
+---
+
+## 2. 业务流程
+
+### 2.1 模板审核流程
+
+```
+用户投稿 → 待审核列表 → 审核详情 → 通过/拒绝 → 通知用户
+                                        ↓
+                                    拒绝 → 通知+原因
+```
+
+### 2.2 分类管理流程
+
+```
+分类列表 → 新增/编辑 → 保存 → 生效
+```
+
+---
+
+## 3. 数据设计
+
+### 3.1 核心实体
+
+#### 3.1.1 模板 (template)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| template_id | VARCHAR(20) | 模板唯一ID | ✓ |
+| name | VARCHAR(100) | 模板名称 | ✓ |
+| description | VARCHAR(500) | 描述 | - |
+| category | VARCHAR(20) | 分类编码 | ✓ |
+| category_name | VARCHAR(50) | 分类名称 | - |
+| tags | VARCHAR(500) | 标签列表 | - |
+| cover_url | VARCHAR(500) | 封面图 | ✓ |
+| preview_urls | JSON | 预览图列表 | - |
+| source_diagram_id | VARCHAR(20) | 关联图纸ID | - |
+| bead_params | JSON | 拼豆参数 | ✓ |
+| color_summary | JSON | 色号摘要 | - |
+| source_type | VARCHAR(20) | 来源：official/creator | ✓ |
+| creator_id | BIGINT | 创作者ID | - |
+| creator_name | VARCHAR(50) | 创作者名称 | - |
+| view_count | INT | 浏览数 | - |
+| like_count | INT | 点赞数 | - |
+| use_count | INT | 使用次数 | - |
+| status | VARCHAR(20) | 状态 | ✓ |
+| is_featured | TINYINT | 是否精选 | - |
+| is_official | TINYINT | 是否官方 | - |
+| reject_reason | VARCHAR(500) | 拒绝原因 | - |
+| review_time | DATETIME | 审核时间 | - |
+| reviewer_id | BIGINT | 审核人ID | - |
+| create_time | DATETIME | 创建时间 | ✓ |
+| update_time | DATETIME | 更新时间 | - |
+
+#### 3.1.2 模板分类 (template_category)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| name | VARCHAR(50) | 分类名称 | ✓ |
+| code | VARCHAR(50) | 分类编码 | ✓ |
+| icon | VARCHAR(100) | 图标 | - |
+| sort | INT | 排序 | - |
+| status | TINYINT | 状态：0-隐藏 1-显示 | ✓ |
+| create_time | DATETIME | 创建时间 | ✓ |
+
+#### 3.1.3 模板标签 (template_tag)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| name | VARCHAR(50) | 标签名称 | ✓ |
+| category | VARCHAR(20) | 所属分类 | - |
+| type | VARCHAR(20) | 标签类型 | - |
+| use_count | INT | 使用次数 | - |
+| status | TINYINT | 状态 | ✓ |
+| create_time | DATETIME | 创建时间 | ✓ |
+
+#### 3.1.4 投稿记录 (template_submission)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| submission_id | VARCHAR(20) | 投稿ID | ✓ |
+| user_id | BIGINT | 投稿用户ID | ✓ |
+| template_id | VARCHAR(20) | 关联模板ID | - |
+| name | VARCHAR(100) | 模板名称 | ✓ |
+| category | VARCHAR(20) | 分类编码 | ✓ |
+| tags | VARCHAR(500) | 标签 | - |
+| description | VARCHAR(500) | 描述 | - |
+| preview_urls | JSON | 成品图 | - |
+| diagram_url | VARCHAR(500) | 图纸 | - |
+| bead_params | JSON | 拼豆参数 | - |
+| status | VARCHAR(20) | 状态 | ✓ |
+| reject_reason | VARCHAR(500) | 拒绝原因 | - |
+| reviewer_id | BIGINT | 审核人ID | - |
+| review_time | DATETIME | 审核时间 | - |
+| create_time | DATETIME | 创建时间 | ✓ |
+
+### 3.2 数据库表结构
+
+```sql
+-- 模板表(业务库引用)
+-- 实际表在 pindou_community 库中
+
+-- 模板分类表
+CREATE TABLE template_category (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    name VARCHAR(50) NOT NULL COMMENT '分类名称',
+    code VARCHAR(50) NOT NULL UNIQUE COMMENT '分类编码',
+    icon VARCHAR(100) COMMENT '图标',
+    sort INT DEFAULT 0 COMMENT '排序',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-隐藏 1-显示',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_code (code),
+    INDEX idx_status (status),
+    INDEX idx_sort (sort)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模板分类表';
+
+-- 模板标签表
+CREATE TABLE template_tag (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    name VARCHAR(50) NOT NULL COMMENT '标签名称',
+    category VARCHAR(20) COMMENT '所属分类',
+    type VARCHAR(20) COMMENT '标签类型 theme/object/difficulty/scenario',
+    use_count INT DEFAULT 0 COMMENT '使用次数',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '状态 0-禁用 1-启用',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_name (name),
+    INDEX idx_category (category),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模板标签表';
+
+-- 模板审核记录表
+CREATE TABLE template_review_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    template_id BIGINT NOT NULL COMMENT '模板ID',
+    reviewer_id BIGINT NOT NULL COMMENT '审核人ID',
+    action VARCHAR(20) NOT NULL COMMENT '操作 approve/reject',
+    reason VARCHAR(500) COMMENT '原因',
+    remark VARCHAR(500) COMMENT '备注',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_template_id (template_id),
+    INDEX idx_reviewer_id (reviewer_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模板审核记录表';
+```
+
+---
+
+## 4. 接口设计
+
+### 4.1 模板管理接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 模板列表 | GET | /api/admin/v1/template/list | 获取模板列表 |
+| 待审列表 | GET | /api/admin/v1/template/review/pending | 获取待审核列表 |
+| 模板详情 | GET | /api/admin/v1/template/{id} | 获取模板详情 |
+| 审核通过 | POST | /api/admin/v1/template/review/approve | 审核通过 |
+| 审核拒绝 | POST | /api/admin/v1/template/review/reject | 审核拒绝 |
+| 模板下架 | POST | /api/admin/v1/template/{id}/offline | 下架模板 |
+| 模板上架 | POST | /api/admin/v1/template/{id}/online | 上架模板 |
+| 设为精选 | POST | /api/admin/v1/template/{id}/featured | 设为精选 |
+| 取消精选 | POST | /api/admin/v1/template/{id}/unfeatured | 取消精选 |
+
+### 4.2 分类管理接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 分类列表 | GET | /api/admin/v1/template/category/list | 获取分类列表 |
+| 新增分类 | POST | /api/admin/v1/template/category | 新增分类 |
+| 修改分类 | PUT | /api/admin/v1/template/category/{id} | 修改分类 |
+| 删除分类 | DELETE | /api/admin/v1/template/category/{id} | 删除分类 |
+| 分类排序 | POST | /api/admin/v1/template/category/sort | 分类排序 |
+
+### 4.3 标签管理接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 标签列表 | GET | /api/admin/v1/template/tag/list | 获取标签列表 |
+| 新增标签 | POST | /api/admin/v1/template/tag | 新增标签 |
+| 修改标签 | PUT | /api/admin/v1/template/tag/{id} | 修改标签 |
+| 删除标签 | DELETE | /api/admin/v1/template/tag/{id} | 删除标签 |
+
+### 4.4 接口详情
+
+#### 4.4.1 模板详情接口
+
+```
+GET /api/admin/v1/template/1
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "id": 1,
+        "template_id": "t_001",
+        "name": "圣诞老人",
+        "description": "给孩子的圣诞礼物",
+        "category": "festival",
+        "category_name": "节日",
+        "tags": ["圣诞", "亲子", "简单"],
+        "cover_url": "https://...",
+        "preview_urls": ["https://...", "https://..."],
+        "bead_params": {
+            "board_size": "50x50",
+            "color_count": 28,
+            "bead_count": 5000,
+            "difficulty": "easy",
+            "style": "realistic"
+        },
+        "color_summary": {
+            "total_colors": 28,
+            "total_beads": 5000
+        },
+        "source_type": "official",
+        "creator_name": "系统管理员",
+        "view_count": 1234,
+        "like_count": 567,
+        "use_count": 890,
+        "is_featured": 1,
+        "is_official": 1,
+        "status": "approved",
+        "create_time": "2026-06-01 10:00:00"
+    }
+}
+```
+
+#### 4.4.2 审核通过接口
+
+```
+POST /api/admin/v1/template/review/approve
+Request:
+{
+    "template_id": 1,
+    "remark": "模板质量合格，通过审核"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "审核通过"
+}
+```
+
+---
+
+## 5. 页面设计
+
+### 5.1 页面清单
+
+| 页面 | 路由 | 说明 |
+|------|------|------|
+| 模板列表 | /template/list | 模板列表页 |
+| 待审核列表 | /template/review | 待审核列表 |
+| 模板详情 | /template/detail/:id | 模板详情页 |
+| 分类管理 | /template/category | 分类管理 |
+| 标签管理 | /template/tag | 标签管理 |
+
+### 5.2 模板列表页面
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ 模板管理 - 模板列表                                            │
+├────────────────────────────────────────────────────────────────┤
+│ 筛选: [状态▼全部] [分类▼全部] [来源▼全部] [难度▼] [关键词]    │
+│       [搜索] [添加模板]                                        │
+├────────────────────────────────────────────────────────────────┤
+│ ID    │ 模板名   │ 分类 │ 来源  │ 色号数 │ 状态  │ 操作     │
+│ t_001 │ 圣诞老人 │ 节日 │ 官方  │ 28     │ 已发布│ 审/删    │
+│ t_002 │ 皮卡丘   │ 卡通 │ 达人  │ 35     │ 待审核│ 审/拒    │
+│ ...   │ ...      │ ...  │ ...   │ ...    │ ...   │ ...      │
+├────────────────────────────────────────────────────────────────┤
+│ 总计: 234  条  已发布: 200  │ 待审核: 23  │ 已下架: 11       │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 6. 审核规则
+
+### 6.1 审核维度
+
+| 维度 | 检查项 | 处理方式 |
+|------|--------|----------|
+| 版权 | 原创/已授权/无侵权 | 需授权证明 |
+| 质量 | 拼豆图清晰、色号准确 | 需达标 |
+| 合规 | 无违规内容 | 需合规 |
+| 完整性 | 信息齐全 | 需完整 |
+| 难度匹配 | 标注与实际一致 | 需一致 |
+
+### 6.2 模板状态
+
+| 状态 | 说明 |
+|------|------|
+| draft | 草稿 |
+| pending | 待审核 |
+| approved | 已通过 |
+| rejected | 已拒绝 |
+| offline | 已下架 |
+
+### 6.3 分类编码
+
+| 编码 | 名称 | 目标数量 |
+|------|------|----------|
+| festival | 节日 | 30 |
+| cartoon | 卡通 | 30 |
+| anime | 二次元 | 20 |
+| pet | 宠物 | 20 |
+| scenery | 风景 | 20 |
+| pixel_game | 像素游戏 | 15 |
+| chinese | 国风 | 20 |
+| emoji | 表情包 | 15 |
+| text | 文字 | 10 |
+| other | 其他 | 20 |
+
+---
+
+## 7. 验收标准
+
+### 7.1 功能验收
+
+- [ ] 模板列表展示正常
+- [ ] 筛选/搜索功能正常
+- [ ] 模板详情展示完整
+- [ ] 审核通过功能正常
+- [ ] 审核拒绝功能正常
+- [ ] 分类增删改查正常
+- [ ] 标签增删改查正常
+- [ ] 模板上下架功能正常
+
+### 7.2 内容验收
+
+- [ ] 模板分类覆盖10个一级分类
+- [ ] 每个分类至少10个模板
+- [ ] 官方模板有IP授权
+
+---
+
+## 8. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v0.1 | 2026-06-07 | 初稿 |
+
+---
+
+*模板管理模块概要设计结束*

@@ -1,0 +1,438 @@
+# 用户管理模块概要设计
+
+> **模块**: 后台管理系统 - 用户管理
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 模块概述
+
+### 1.1 功能定位
+
+用户管理模块用于管理移动端用户账号，支持查看用户信息、会员管理、账号状态管理等运营功能。
+
+### 1.2 功能清单
+
+| 功能 | 说明 | 优先级 |
+|------|------|--------|
+| 用户列表 | 查看用户列表，支持筛选 | P0 |
+| 用户详情 | 查看用户详细信息 | P0 |
+| 禁用账号 | 禁用违规用户 | P1 |
+| 启用账号 | 恢复正常用户 | P1 |
+| 会员列表 | 查看会员列表 | P1 |
+| 开通会员 | 手动给用户开通会员 | P1 |
+| 会员权益配置 | 配置会员等级权益 | P2 |
+
+---
+
+## 2. 业务流程
+
+### 2.1 用户管理流程
+
+```
+用户列表 → 筛选/搜索 → 查看详情 → 禁用/启用
+```
+
+### 2.2 会员管理流程
+
+```
+会员列表 → 筛选 → 查看详情 → 手动开通 → 权益配置
+```
+
+---
+
+## 3. 数据设计
+
+### 3.1 核心实体
+
+#### 3.1.1 用户 (user)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| user_id | VARCHAR(20) | 用户唯一ID | ✓ |
+| nickname | VARCHAR(50) | 昵称 | ✓ |
+| avatar | VARCHAR(500) | 头像URL | - |
+| phone | VARCHAR(20) | 手机号(AES加密) | - |
+| unionid | VARCHAR(100) | 微信unionid | - |
+| openid | VARCHAR(100) | 微信openid | - |
+| apple_user_id | VARCHAR(100) | Apple用户ID | - |
+| gender | TINYINT | 性别：0-未知 1-男 2-女 | - |
+| city | VARCHAR(50) | 城市 | - |
+| register_method | VARCHAR(20) | 注册方式 | ✓ |
+| register_time | DATETIME | 注册时间 | ✓ |
+| last_login_time | DATETIME | 最后登录时间 | - |
+| last_login_ip | VARCHAR(50) | 最后登录IP | - |
+| is_member | TINYINT | 会员状态：0-非会员 1-会员 | ✓ |
+| member_grade | VARCHAR(20) | 会员等级 | - |
+| member_expire_time | DATETIME | 会员到期时间 | - |
+| status | TINYINT | 状态：0-禁用 1-正常 | ✓ |
+| create_time | DATETIME | 创建时间 | ✓ |
+| update_time | DATETIME | 更新时间 | - |
+
+#### 3.1.2 会员订单 (member_order)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| order_id | VARCHAR(50) | 订单号 | ✓ |
+| user_id | BIGINT | 用户ID | ✓ |
+| product_id | VARCHAR(50) | 产品ID | ✓ |
+| product_name | VARCHAR(100) | 产品名称 | ✓ |
+| amount | DECIMAL(10,2) | 支付金额 | ✓ |
+| pay_method | VARCHAR(20) | 支付方式 | - |
+| pay_time | DATETIME | 支付时间 | - |
+| start_time | DATETIME | 会员开始时间 | ✓ |
+| end_time | DATETIME | 会员结束时间 | ✓ |
+| status | TINYINT | 状态：0-待支付 1-已支付 2-已取消 | ✓ |
+| create_time | DATETIME | 创建时间 | ✓ |
+
+#### 3.1.3 会员产品 (member_product)
+
+| 字段 | 类型 | 说明 | 必填 |
+|------|------|------|------|
+| id | BIGINT | 主键ID | ✓ |
+| product_id | VARCHAR(50) | 产品ID | ✓ |
+| product_name | VARCHAR(100) | 产品名称 | ✓ |
+| grade | VARCHAR(20) | 会员等级 | ✓ |
+| duration_days | INT | 时长(天) | ✓ |
+| price | DECIMAL(10,2) | 价格 | ✓ |
+| original_price | DECIMAL(10,2) | 原价 | - |
+| daily_generations | INT | 每日生成次数 | ✓ |
+| features | TEXT | 权益说明JSON | - |
+| status | TINYINT | 状态：0-下架 1-上架 | ✓ |
+| create_time | DATETIME | 创建时间 | ✓ |
+
+### 3.2 数据库表结构
+
+```sql
+-- 用户表
+CREATE TABLE `user` (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    user_id VARCHAR(20) NOT NULL UNIQUE COMMENT '用户唯一ID',
+    nickname VARCHAR(50) NOT NULL COMMENT '昵称',
+    avatar VARCHAR(500) COMMENT '头像URL',
+    phone VARCHAR(20) COMMENT '手机号',
+    unionid VARCHAR(100) COMMENT '微信unionid',
+    openid VARCHAR(100) COMMENT '微信openid',
+    apple_user_id VARCHAR(100) COMMENT 'Apple用户ID',
+    gender TINYINT DEFAULT 0 COMMENT '性别 0-未知 1-男 2-女',
+    city VARCHAR(50) COMMENT '城市',
+    register_method VARCHAR(20) NOT NULL COMMENT '注册方式 phone/wechat/apple/guest',
+    register_time DATETIME NOT NULL COMMENT '注册时间',
+    last_login_time DATETIME COMMENT '最后登录时间',
+    last_login_ip VARCHAR(50) COMMENT '最后登录IP',
+    is_member TINYINT DEFAULT 0 COMMENT '会员状态 0-非会员 1-会员',
+    member_grade VARCHAR(20) COMMENT '会员等级',
+    member_expire_time DATETIME COMMENT '会员到期时间',
+    status TINYINT DEFAULT 1 COMMENT '状态 0-禁用 1-正常',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_user_id (user_id),
+    INDEX idx_phone (phone),
+    INDEX idx_register_time (register_time),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+
+-- 会员订单表
+CREATE TABLE member_order (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    order_id VARCHAR(50) NOT NULL UNIQUE COMMENT '订单号',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    product_id VARCHAR(50) NOT NULL COMMENT '产品ID',
+    product_name VARCHAR(100) NOT NULL COMMENT '产品名称',
+    amount DECIMAL(10,2) NOT NULL COMMENT '支付金额',
+    pay_method VARCHAR(20) COMMENT '支付方式 wechat/alipay/ios',
+    pay_time DATETIME COMMENT '支付时间',
+    start_time DATETIME NOT NULL COMMENT '会员开始时间',
+    end_time DATETIME NOT NULL COMMENT '会员结束时间',
+    status TINYINT DEFAULT 0 COMMENT '状态 0-待支付 1-已支付 2-已取消',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_order_id (order_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员订单表';
+
+-- 会员产品表
+CREATE TABLE member_product (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+    product_id VARCHAR(50) NOT NULL UNIQUE COMMENT '产品ID',
+    product_name VARCHAR(100) NOT NULL COMMENT '产品名称',
+    grade VARCHAR(20) NOT NULL COMMENT '会员等级',
+    duration_days INT NOT NULL COMMENT '时长(天)',
+    price DECIMAL(10,2) NOT NULL COMMENT '价格',
+    original_price DECIMAL(10,2) COMMENT '原价',
+    daily_generations INT DEFAULT -1 COMMENT '每日生成次数 -1无限',
+    features TEXT COMMENT '权益说明JSON',
+    status TINYINT DEFAULT 1 COMMENT '状态 0-下架 1-上架',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_grade (grade),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员产品表';
+```
+
+---
+
+## 4. 接口设计
+
+### 4.1 用户管理接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 用户列表 | GET | /api/admin/v1/user/list | 获取用户列表 |
+| 用户详情 | GET | /api/admin/v1/user/{id} | 获取用户详情 |
+| 用户搜索 | GET | /api/admin/v1/user/search | 搜索用户 |
+| 禁用用户 | POST | /api/admin/v1/user/{id}/disable | 禁用用户账号 |
+| 启用用户 | POST | /api/admin/v1/user/{id}/enable | 启用用户账号 |
+| 查看发布内容 | GET | /api/admin/v1/user/{id}/posts | 查看用户发布的帖子 |
+| 重置密码 | POST | /api/admin/v1/user/{id}/reset-password | 重置用户密码(如有) |
+
+### 4.2 会员管理接口
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 会员列表 | GET | /api/admin/v1/member/list | 获取会员列表 |
+| 会员详情 | GET | /api/admin/v1/member/{id} | 获取会员详情 |
+| 开通会员 | POST | /api/admin/v1/member/open | 手动开通会员 |
+| 会员订单列表 | GET | /api/admin/v1/member/order/list | 会员订单列表 |
+| 会员产品列表 | GET | /api/admin/v1/member/product/list | 会员产品列表 |
+| 新增产品 | POST | /api/admin/v1/member/product | 新增会员产品 |
+| 修改产品 | PUT | /api/admin/v1/member/product/{id} | 修改会员产品 |
+| 删除产品 | DELETE | /api/admin/v1/member/product/{id} | 删除会员产品 |
+
+### 4.3 接口详情
+
+#### 4.3.1 用户列表接口
+
+```
+GET /api/admin/v1/user/list
+Query Parameters:
+- page: 页码，默认1
+- size: 每页条数，默认20
+- user_id: 用户ID(可选)
+- nickname: 昵称关键词(可选)
+- phone: 手机号(可选)
+- register_method: 注册方式(可选)
+- is_member: 会员状态(可选)
+- status: 账号状态(可选)
+- start_time: 注册开始时间(可选)
+- end_time: 注册结束时间(可选)
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "user_id": "u_10001",
+                "nickname": "小美",
+                "avatar": "https://...",
+                "phone": "138****8000",
+                "register_method": "wechat",
+                "register_time": "2026-01-01 10:00:00",
+                "is_member": 1,
+                "member_grade": "VIP1",
+                "status": 1,
+                "post_count": 23,
+                "follower_count": 89
+            }
+        ],
+        "total": 1234,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.3.2 用户详情接口
+
+```
+GET /api/admin/v1/user/1
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "id": 1,
+        "user_id": "u_10001",
+        "nickname": "小美",
+        "avatar": "https://...",
+        "phone": "138****8000",
+        "gender": 2,
+        "city": "北京",
+        "register_method": "wechat",
+        "register_time": "2026-01-01 10:00:00",
+        "last_login_time": "2026-06-07 09:30:00",
+        "last_login_ip": "123.125.115.110",
+        "is_member": 1,
+        "member_grade": "VIP1",
+        "member_expire_time": "2026-12-31 23:59:59",
+        "status": 1,
+        "stats": {
+            "post_count": 23,
+            "tutorial_count": 5,
+            "follower_count": 89,
+            "following_count": 45,
+            "like_count": 1234,
+            "favorite_count": 56
+        },
+        "orders": [
+            {
+                "order_id": "xxx",
+                "product_name": "月度会员",
+                "amount": 19.90,
+                "pay_time": "2026-01-01"
+            }
+        ]
+    }
+}
+```
+
+#### 4.3.3 开通会员接口
+
+```
+POST /api/admin/v1/member/open
+Request:
+{
+    "user_id": 1,
+    "product_id": "monthly_vip",
+    "duration_days": 30,
+    "remark": "手动开通会员"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success",
+    "data": {
+        "member_expire_time": "2026-07-07 23:59:59"
+    }
+}
+```
+
+---
+
+## 5. 页面设计
+
+### 5.1 页面清单
+
+| 页面 | 路由 | 说明 |
+|------|------|------|
+| 用户列表 | /user/list | 用户列表页 |
+| 用户详情 | /user/detail/:id | 用户详情页 |
+| 会员列表 | /member/list | 会员列表页 |
+| 会员详情 | /member/detail/:id | 会员详情页 |
+| 会员产品 | /member/product | 会员产品配置 |
+| 会员订单 | /member/order | 会员订单列表 |
+
+### 5.2 用户列表页面
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ 用户管理 - 用户列表                                              │
+├──────────────────────────────────────────────────────────────────┤
+│ [用户ID/昵称/手机] [注册方式▼] [会员状态▼] [状态▼] [时间范围]    │
+│ [搜索] [重置]                                                    │
+├──────────────────────────────────────────────────────────────────┤
+│ 用户ID      │ 昵称   │ 手机号    │ 注册方式 │ 会员 │ 状态 │ 操作 │
+│ u_1         │ 小美   │ 138****   │ 微信     │ 是   │ 正常 │ 查看 │
+│ u_2         │ 小红   │ 139****   │ 手机号   │ 否   │ 正常 │ 查看 │
+│ ...         │ ...    │ ...       │ ...      │ ...  │ ...  │ ...  │
+├──────────────────────────────────────────────────────────────────┤
+│ 总计: 1,234条  [首页] [上一页] 1 2 3 ... [下一页] [末页]        │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 5.3 用户详情页面
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ 用户详情 - u_1                                                   │
+├──────────────────────────────────────────────────────────────────┤
+│ [基本信息]                                                       │
+│ 头像: [头像]  昵称: 小美  性别: 女  城市: 北京                   │
+│ ID: u_1         注册方式: 微信  注册时间: 2026-01-01 10:00       │
+│ 最后登录: 2026-06-07 09:30  登录IP: 123.125.*.*                  │
+├──────────────────────────────────────────────────────────────────┤
+│ [会员信息]                                                       │
+│ 会员状态: 有效  到期时间: 2026-12-31                             │
+│ 会员等级: VIP1    累计付费: ¥168                                 │
+├──────────────────────────────────────────────────────────────────┤
+│ [数据统计]                                                       │
+│ 作品: 23  │ 教程: 5  │ 粉丝: 89  │ 获赞: 1,234                   │
+├──────────────────────────────────────────────────────────────────┤
+│ [操作]  [禁用账号]  [重置密码]  [查看发布的内容]                 │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 6. 业务规则
+
+### 6.1 用户状态管理
+
+| 状态 | 说明 | 可用操作 |
+|------|------|----------|
+| 正常 | 正常使用的账号 | 禁用、查看详情 |
+| 禁用 | 被禁用的账号 | 启用、查看详情 |
+
+### 6.2 禁用规则
+
+- 禁用后用户无法登录APP
+- 禁用后保留用户所有数据
+- 禁用时可选择禁言（禁止发帖评论）
+- 禁用后可手动启用恢复
+
+### 6.3 会员开通规则
+
+- 手动开通不经过支付流程
+- 开通后即时生效
+- 会员时长可累加
+- 开通后记录订单信息
+
+---
+
+## 7. 异常处理
+
+| 场景 | 处理 |
+|------|------|
+| 用户不存在 | 返回404，"用户不存在" |
+| 用户已禁用 | 返回"用户账号已被禁用" |
+| 开通会员-用户不存在 | 返回"用户不存在" |
+| 开通会员-参数错误 | 返回具体错误原因 |
+
+---
+
+## 8. 验收标准
+
+### 8.1 功能验收
+
+- [ ] 用户列表展示正常
+- [ ] 筛选/搜索功能正常
+- [ ] 用户详情展示完整
+- [ ] 禁用账号功能正常
+- [ ] 启用账号功能正常
+- [ ] 会员列表展示正常
+- [ ] 开通会员功能正常
+- [ ] 会员产品配置正常
+
+### 8.2 数据验收
+
+- [ ] 用户数据脱敏显示
+- [ ] 统计数据计算正确
+- [ ] 会员状态同步正确
+
+---
+
+## 9. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v0.1 | 2026-06-07 | 初稿 |
+
+---
+
+*用户管理模块概要设计结束*
