@@ -1,0 +1,48 @@
+## .NET 构建产物
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+.idea/
+
+## 运行时数据
+*.db
+*.sqlite
+*.sqlite3
+*.mdb
+uploads/
+
+## 凭据
+*.pfx
+*.key
+appsettings.Local.json
+appsettings.Production.json
+
+## 前端
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/.env.local
+**/.env.*.local
+
+## Flutter
+**/.dart_tool/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/pubspec.lock
+
+## Docker
+deploy/data/
+
+## OS
+.DS_Store
+Thumbs.db

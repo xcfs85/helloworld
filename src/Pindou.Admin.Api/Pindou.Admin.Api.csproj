@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Pindou.Admin.Api</RootNamespace>
+    <AssemblyName>Pindou.Admin.Api</AssemblyName>
+    <UserSecretsId>pindou-admin-secrets</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pindou.Domain\Pindou.Domain.csproj" />
+    <ProjectReference Include="..\Pindou.Application\Pindou.Application.csproj" />
+    <ProjectReference Include="..\Pindou.Infrastructure\Pindou.Infrastructure.csproj" />
+    <ProjectReference Include="..\Pindou.Shared\Pindou.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # 移动端API
+  pindou-api:
+    build:
+      context: .
+      dockerfile: src/Pindou.Api/Dockerfile
+    image: pindou-api:latest
+    container_name: pindou-api
+    restart: unless-stopped
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - Database__ConnectionString=Host=pindou-db;Port=5432;Database=pindou;Username=pindou;Password=Pindou@2026
+      - Database__DbType=PostgreSQL
+      - Redis__ConnectionString=pindou-redis:6379
+      - Redis__Prefix=pindou:api:
+      - Jwt__Secret=PindouAppSecretKey2026PindouAppSecretKey2026
+      - Storage__Provider=qiniu
+      - Storage__LocalPath=/app/uploads
+      - Storage__PublicBaseUrl=https://api.pindou.com
+    volumes:
+      - ./data/pindou:/app/uploads
+    depends_on:
+      - pindou-db
+      - pindou-redis
+    networks:
+      - pindou-net
+
+  # 后台管理API
+  pindou-admin-api:
+    build:
+      context: .
+      dockerfile: src/Pindou.Admin.Api/Dockerfile
+    image: pindou-admin-api:latest
+    container_name: pindou-admin-api
+    restart: unless-stopped
+    ports:
+      - "5100:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - Database__ConnectionString=Host=pindou-db;Port=5432;Database=pindou;Username=pindou;Password=Pindou@2026
+      - Database__DbType=PostgreSQL
+      - Redis__ConnectionString=pindou-redis:6379
+      - Redis__Prefix=pindou:admin:
+      - Jwt__Secret=PindouAdminSecretKey2026PindouAdminSecretKey2026
+    depends_on:
+      - pindou-db
+      - pindou-redis
+    networks:
+      - pindou-net
+
+  # 后台前端
+  pindou-admin-web:
+    build:
+      context: .
+      dockerfile: src/admin-web/Dockerfile
+    image: pindou-admin-web:latest
+    container_name: pindou-admin-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - pindou-admin-api
+    networks:
+      - pindou-net
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: pindou-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - pindou-api
+      - pindou-admin-api
+      - pindou-admin-web
+    networks:
+      - pindou-net
+
+  # PostgreSQL
+  pindou-db:
+    image: postgres:16-alpine
+    container_name: pindou-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pindou
+      POSTGRES_USER: pindou
+      POSTGRES_PASSWORD: Pindou@2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./deploy/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - pindou-net
+
+  # Redis
+  pindou-redis:
+    image: redis:7-alpine
+    container_name: pindou-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass Pindou@Redis2026
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - pindou-net
+
+networks:
+  pindou-net:
+    driver: bridge
