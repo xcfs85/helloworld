@@ -1,0 +1,783 @@
+# 拼豆系统数据库设计说明书
+> **项目**: 拼豆 - AI 照片转拼豆工具
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+## 1. 数据库概述
+### 1.1 技术选型
+| 环境 | 数据库 | 说明 |
+|------|--------|------|
+| 开发 | SQLite | 快速开发、单机运行 |
+| 生产 | PostgreSQL | 高并发、数据安全 |
+### 1.2 命名规范
+- 表名: 英文单词+下划线，全小写 (如: user_info)
+- 字段名: 英文单词+下划线，全小写 (如: user_id)
+- 主键: id (自增或UUID)
+- 索引: idx_字段名
+- 外键: fk_表名_字段名
+
+---
+
+## 2. 核心实体关系图
+```
+用户 (User)
+    ├── Token (用户会话)
+    ├── Diagram (拼豆图纸)
+    │   └── ColorInfo (色号信息)
+    ├── Post (帖子)
+    │   ├── Comment (评论)
+    │   ├── Like (点赞)
+    │   └── Favorite (收藏)
+    ├── Follow (关注关系)
+    ├── TemplateFavorite (模板收藏)
+    ├── Message (消息通知)
+    ├── Member (会员信息)
+    ├── Order (订单)
+    └── Device (设备信息)
+
+Template (模板)
+    ├── TemplateCategory (模板分类)
+    ├── TemplateTag (模板标签)
+    └── TemplateReviewLog (模板审核记录)
+
+Topic (话题)
+
+Banner (运营Banner)
+    └── OperationTopic (运营话题)
+    └── SpecialTopic (专题)
+    └── PushRecord (推送记录)
+
+内容审核 (Content Review)
+    ├── SensitiveWord (敏感词)
+    ├── Report (举报)
+    └── PostReviewLog (帖子审核记录)
+
+后台管理 (Admin)
+    ├── AdminUser (管理员)
+    ├── Role (角色)
+    └── AdminLog (操作日志)
+
+统计 (Statistics)
+    └── DailyStats (日统计)
+
+系统配置 (System Config)
+    ├── SystemConfig (系统配置)
+    ├── MardColor (MARD色号)
+    └── BeadKit (耗材套装)
+
+会员 (Member)
+    ├── MemberProduct (会员产品)
+    └── MemberOrder (会员订单)
+```
+---
+
+## 3. 表结构设计
+
+### 3.1 用户中心
+
+#### 3.1.1 用户表 (users)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 用户ID |
+| nickname | VARCHAR(50) | NOT NULL | 昵称 |
+| avatar | VARCHAR(500) | NULL | 头像URL |
+| phone | VARCHAR(20) | NULL | 手机号(加密) |
+| unionid | VARCHAR(100) | NULL | 微信unionid |
+| apple_user_id | VARCHAR(100) | NULL | Apple用户ID |
+| gender | VARCHAR(20) | DEFAULT 'unknown' | 性别 |
+| city | VARCHAR(50) | NULL | 城市 |
+| bio | VARCHAR(200) | NULL | 个性签名 |
+| is_member | BOOLEAN | DEFAULT FALSE | 是否会员 |
+| member_expire_time | DATETIME | NULL | 会员过期时间 |
+| status | VARCHAR(20) | DEFAULT 'active' | 状态:active/disabled |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_phone (phone)
+- idx_unionid (unionid)
+- idx_apple_user_id (apple_user_id)
+
+#### 3.1.2 令牌表 (tokens)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| user_id | UUID | NOT NULL, FK | 用户ID |
+| access_token | VARCHAR(500) | NOT NULL | 访问令牌 |
+| refresh_token | VARCHAR(500) | NOT NULL | 刷新令牌 |
+| device_id | VARCHAR(100) | NOT NULL | 设备ID |
+| expires_at | DATETIME | NOT NULL | 过期时间 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**索引**:
+- idx_user_id (user_id)
+- idx_access_token (access_token)
+- idx_refresh_token (refresh_token)
+
+#### 3.1.3 设备表 (devices)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| user_id | UUID | NOT NULL, FK | 用户ID |
+| device_id | VARCHAR(100) | NOT NULL | 设备ID |
+| platform | VARCHAR(20) | NOT NULL | 平台:ios/android |
+| push_token | VARCHAR(500) | NULL | 推送令牌 |
+| app_version | VARCHAR(20) | NULL | APP版本 |
+| last_active_time | DATETIME | NOT NULL | 最后活跃时间 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**索引**:
+- idx_user_id (user_id)
+- idx_device_id (device_id)
+
+---
+
+### 3.2 创作中心
+
+#### 3.2.1 拼豆图纸表 (diagrams)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 图纸ID |
+| user_id | UUID | NOT NULL, FK | 用户ID |
+| name | VARCHAR(100) | NOT NULL | 图纸名称 |
+| status | VARCHAR(20) | DEFAULT 'draft' | 状态:draft/completed/beaded |
+| source_image_url | VARCHAR(500) | NOT NULL | 源图片URL |
+| preview_url | VARCHAR(500) | NULL | 预览图URL |
+| preview_no_grid_url | VARCHAR(500) | NULL | 无格线预览 |
+| board_size | VARCHAR(20) | NOT NULL | 底板规格 |
+| bead_count | INT | NOT NULL | 总颗数 |
+| difficulty | VARCHAR(20) | NOT NULL | 难度 |
+| style | VARCHAR(20) | NOT NULL | 风格 |
+| total_colors | INT | DEFAULT 0 | 色号数量 |
+| total_beads | INT | DEFAULT 0 | 豆子总数 |
+| tags | JSON | NULL | 标签数组 |
+| version | INT | DEFAULT 1 | 版本号 |
+| source_type | VARCHAR(20) | DEFAULT 'create' | 来源:create/template |
+| template_id | UUID | NULL | 来源模板ID |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_user_id (user_id)
+- idx_status (status)
+- idx_user_status (user_id, status)
+
+#### 3.2.2 色号信息表 (color_infos)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| diagram_id | UUID | NOT NULL, FK | 图纸ID |
+| color_index | INT | NOT NULL | 颜色序号 |
+| color_code | VARCHAR(20) | NOT NULL | 色号(如M01) |
+| color_name | VARCHAR(50) | NOT NULL | 颜色名称 |
+| rgb | VARCHAR(20) | NOT NULL | RGB值 |
+| bead_count | INT | NOT NULL | 颗数 |
+| percentage | DECIMAL(5,2) | NOT NULL | 占比 |
+| position | VARCHAR(50) | NULL | 位置范围 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**索引**:
+- idx_diagram_id (diagram_id)
+
+#### 3.2.3 生成任务表 (diagram_tasks)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 任务ID |
+| user_id | UUID | NOT NULL, FK | 用户ID |
+| diagram_id | UUID | NULL | 关联图纸ID |
+| status | VARCHAR(20) | DEFAULT 'pending' | 状态:pending/processing/completed/failed |
+| progress | INT | DEFAULT 0 | 进度0-100 |
+| current_stage | VARCHAR(50) | NULL | 当前阶段 |
+| source_image_url | VARCHAR(500) | NOT NULL | 源图片 |
+| params | JSON | NOT NULL | 生成参数 |
+| error_message | VARCHAR(500) | NULL | 错误信息 |
+| is_sync | BOOLEAN | DEFAULT FALSE | 是否同步执行 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| complete_time | DATETIME | NULL | 完成时间 |
+
+**索引**:
+- idx_user_id (user_id)
+- idx_diagram_id (diagram_id)
+- idx_status (status)
+
+---
+
+### 3.3 社区
+
+#### 3.3.1 帖子表 (posts)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 帖子ID |
+| user_id | UUID | NOT NULL, FK | 作者ID |
+| type | VARCHAR(20) | NOT NULL | 类型:work/request/tutorial/discussion |
+| title | VARCHAR(100) | NOT NULL | 标题 |
+| content | TEXT | NOT NULL | 正文内容 |
+| media | JSON | NOT NULL | 媒体数组[{url, type, width, height}] |
+| topic_ids | JSON | NULL | 话题ID数组 |
+| bead_params | JSON | NULL | 拼豆参数 |
+| diagram_id | UUID | NULL | 关联图纸ID |
+| like_count | INT | DEFAULT 0 | 点赞数 |
+| comment_count | INT | DEFAULT 0 | 评论数 |
+| favorite_count | INT | DEFAULT 0 | 收藏数 |
+| view_count | INT | DEFAULT 0 | 浏览数 |
+| status | VARCHAR(20) | DEFAULT 'active' | 状态:pending/active/deleted |
+| review_status | VARCHAR(20) | DEFAULT 'pending' | 审核状态:pending/approved/rejected |
+| review_reason | VARCHAR(200) | NULL | 拒绝原因 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| publish_time | DATETIME | NOT NULL | 发布时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_user_id (user_id)
+- idx_type (type)
+- idx_status (status)
+- idx_review_status (review_status)
+- idx_create_time (create_time)
+
+#### 3.3.2 评论表 (comments)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 评论ID |
+| post_id | UUID | NOT NULL, FK | 帖子ID |
+| user_id | UUID | NOT NULL, FK | 评论者ID |
+| parent_id | UUID | NULL | 父评论ID |
+| reply_to_user_id | UUID | NULL | 回复目标用户ID |
+| content | VARCHAR(500) | NOT NULL | 评论内容 |
+| like_count | INT | DEFAULT 0 | 点赞数 |
+| status | VARCHAR(20) | DEFAULT 'active' | 状态 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_post_id (post_id)
+- idx_user_id (user_id)
+- idx_parent_id (parent_id)
+
+#### 3.3.3 点赞表 (likes)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| user_id | UUID | NOT NULL, FK | 用户ID |
+| target_id | UUID | NOT NULL | 目标ID |
+| target_type | VARCHAR(20) | NOT NULL | 目标类型:post/comment |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**索引**:
+- idx_user_target (user_id, target_type, target_id) UNIQUE
+- idx_target_id (target_id)
+
+#### 3.3.4 收藏表 (favorites)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| user_id | UUID | NOT NULL, FK | 用户ID |
+| target_id | UUID | NOT NULL | 目标ID |
+| target_type | VARCHAR(20) | NOT NULL | 目标类型:post/template |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**索引**:
+- idx_user_target (user_id, target_type, target_id) UNIQUE
+
+#### 3.3.5 关注表 (follows)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| user_id | UUID | NOT NULL, FK | 关注者ID |
+| follow_user_id | UUID | NOT NULL, FK | 被关注者ID |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**索引**:
+- idx_user_follow (user_id, follow_user_id) UNIQUE
+
+#### 3.3.6 话题表 (topics)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 话题ID |
+| name | VARCHAR(50) | NOT NULL | 话题名称 |
+| description | VARCHAR(200) | NULL | 描述 |
+| cover_url | VARCHAR(500) | NULL | 封面图 |
+| post_count | INT | DEFAULT 0 | 帖子数 |
+| status | VARCHAR(20) | DEFAULT 'active' | 状态 |
+| is_hot | BOOLEAN | DEFAULT FALSE | 是否热门 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+---
+
+### 3.9 内容审核
+
+#### 3.9.1 敏感词表 (sensitive_words)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| word | VARCHAR(100) | NOT NULL | 敏感词 |
+| level | INT | DEFAULT 2 | 级别:1-警告 2-替换 3-拦截 |
+| type | VARCHAR(20) | NOT NULL | 类型:politics/porn/violence/ad/other |
+| replace_word | VARCHAR(50) | NULL | 替换词 |
+| status | INT | DEFAULT 1 | 状态:0-禁用 1-启用 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_word (word)
+- idx_type (type)
+
+#### 3.9.2 举报表 (reports)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| report_id | VARCHAR(20) | NOT NULL, UNIQUE | 举报ID |
+| reporter_id | UUID | NOT NULL, FK | 举报者ID |
+| target_type | VARCHAR(20) | NOT NULL | 目标类型:post/comment/user |
+| target_id | UUID | NOT NULL | 目标ID |
+| target_user_id | UUID | NOT NULL, FK | 被举报用户ID |
+| reason | VARCHAR(20) | NOT NULL | 举报原因 |
+| content | VARCHAR(500) | NULL | 详情内容 |
+| images | JSON | NULL | 图片数组 |
+| status | VARCHAR(20) | DEFAULT 'pending' | 状态:pending/ignored/warned/ban_content/ban_user |
+| handle_result | VARCHAR(500) | NULL | 处理结果 |
+| handler_id | UUID | NULL | 处理人ID |
+| handle_time | DATETIME | NULL | 处理时间 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_reporter_id (reporter_id)
+- idx_target (target_type, target_id)
+- idx_status (status)
+
+#### 3.9.3 帖子审核记录表 (post_review_logs)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| post_id | UUID | NOT NULL, FK | 帖子ID |
+| reviewer_id | UUID | NOT NULL, FK | 审核人ID |
+| action | VARCHAR(20) | NOT NULL | 操作:approve/reject |
+| reason | VARCHAR(500) | NULL | 拒绝原因 |
+| remark | VARCHAR(500) | NULL | 备注 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**索引**:
+- idx_post_id (post_id)
+
+### 3.4 模板
+
+#### 3.4.1 模板表 (templates)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 模板ID |
+| name | VARCHAR(100) | NOT NULL | 模板名称 |
+| category_id | UUID | NOT NULL, FK | 分类ID |
+| tags | JSON | NULL | 标签数组 |
+| cover_url | VARCHAR(500) | NOT NULL | 封面图URL |
+| preview_urls | JSON | NOT NULL | 预览图数组 |
+| board_size | VARCHAR(20) | NOT NULL | 底板规格 |
+| bead_count | INT | NOT NULL | 总颗数 |
+| difficulty | VARCHAR(20) | NOT NULL | 难度 |
+| total_colors | INT | DEFAULT 0 | 色号数 |
+| source_type | VARCHAR(20) | DEFAULT 'official' | 来源:official/creator |
+| creator_id | UUID | NULL | 创作者用户ID |
+| creator_name | VARCHAR(50) | NULL | 创作者名称 |
+| view_count | INT | DEFAULT 0 | 浏览数 |
+| like_count | INT | DEFAULT 0 | 点赞数 |
+| use_count | INT | DEFAULT 0 | 使用数 |
+| status | VARCHAR(20) | DEFAULT 'pending' | 状态:pending/active/deleted |
+| review_status | VARCHAR(20) | DEFAULT 'pending' | 审核状态 |
+| review_reason | VARCHAR(200) | NULL | 拒绝原因 |
+| is_featured | BOOLEAN | DEFAULT FALSE | 是否精选 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_category_id (category_id)
+- idx_status (status)
+- idx_is_featured (is_featured)
+
+#### 3.4.2 模板分类表 (template_categories)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 分类ID |
+| name | VARCHAR(50) | NOT NULL | 分类名称 |
+| icon | VARCHAR(100) | NULL | 图标 |
+| sort | INT | DEFAULT 0 | 排序 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**初始数据**:
+- 节日、卡通、二次元、宠物、风景、像素游戏、国风、表情包、文字、其他
+
+#### 3.4.3 模板收藏表 (template_favorites)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| user_id | UUID | NOT NULL, FK | 用户ID |
+| template_id | UUID | NOT NULL, FK | 模板ID |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**索引**:
+- idx_user_template (user_id, template_id) UNIQUE
+
+#### 3.4.4 模板标签表 (template_tags)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 标签ID |
+| name | VARCHAR(50) | NOT NULL | 标签名称 |
+| category | VARCHAR(20) | NULL | 所属分类 |
+| type | VARCHAR(20) | NULL | 标签类型:theme/style/difficulty |
+| use_count | INT | DEFAULT 0 | 使用次数 |
+| status | INT | DEFAULT 1 | 状态:0-禁用 1-启用 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_name (name)
+
+#### 3.4.5 模板审核记录表 (template_review_logs)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| template_id | UUID | NOT NULL, FK | 模板ID |
+| reviewer_id | UUID | NOT NULL, FK | 审核人ID |
+| action | VARCHAR(20) | NOT NULL | 操作:approve/reject |
+| reason | VARCHAR(500) | NULL | 拒绝原因 |
+| remark | VARCHAR(500) | NULL | 备注 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**索引**:
+- idx_template_id (template_id)
+
+---
+
+### 3.5 消息
+
+#### 3.5.1 消息表 (messages)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 消息ID |
+| user_id | UUID | NOT NULL, FK | 接收用户ID |
+| type | VARCHAR(20) | NOT NULL | 类型:comment/like/follow/at/system |
+| title | VARCHAR(100) | NOT NULL | 标题 |
+| content | VARCHAR(500) | NOT NULL | 内容 |
+| extras | JSON | NULL | 扩展数据 |
+| is_read | BOOLEAN | DEFAULT FALSE | 是否已读 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**索引**:
+- idx_user_id (user_id)
+- idx_type (type)
+- idx_is_read (is_read)
+- idx_create_time (create_time)
+
+#### 3.5.2 用户消息设置表 (message_settings)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| user_id | UUID | NOT NULL, FK | 用户ID |
+| comment_enabled | BOOLEAN | DEFAULT TRUE | 评论通知 |
+| like_enabled | BOOLEAN | DEFAULT TRUE | 点赞通知 |
+| follow_enabled | BOOLEAN | DEFAULT TRUE | 关注通知 |
+| at_enabled | BOOLEAN | DEFAULT TRUE | @通知 |
+| system_enabled | BOOLEAN | DEFAULT TRUE | 系统通知 |
+| marketing_enabled | BOOLEAN | DEFAULT TRUE | 营销通知 |
+| quiet_hours_enabled | BOOLEAN | DEFAULT FALSE | 勿扰模式 |
+| quiet_hours_start | VARCHAR(10) | DEFAULT '22:00' | 勿扰开始 |
+| quiet_hours_end | VARCHAR(10) | DEFAULT '08:00' | 勿扰结束 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+---
+
+### 3.6 会员
+
+#### 3.6.1 会员表 (members)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| user_id | UUID | NOT NULL, FK | 用户ID |
+| member_type | VARCHAR(20) | NOT NULL | 会员类型:month/quarter/year/lifetime |
+| start_time | DATETIME | NOT NULL | 开始时间 |
+| expire_time | DATETIME | NOT NULL | 过期时间 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+#### 3.6.2 订单表 (orders)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 订单ID |
+| user_id | UUID | NOT NULL, FK | 用户ID |
+| order_no | VARCHAR(50) | NOT NULL | 订单号 |
+| product_type | VARCHAR(20) | NOT NULL | 商品类型:member/coupon |
+| product_id | UUID | NOT NULL | 商品ID |
+| amount | DECIMAL(10,2) | NOT NULL | 金额 |
+| status | VARCHAR(20) | DEFAULT 'pending' | 状态:pending/paid/canceled/refunded |
+| pay_method | VARCHAR(20) | NULL | 支付方式 |
+| pay_time | DATETIME | NULL | 支付时间 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_user_id (user_id)
+- idx_order_no (order_no)
+
+#### 3.6.3 会员产品表 (member_products)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 产品ID |
+| product_id | VARCHAR(50) | NOT NULL, UNIQUE | 产品标识 |
+| product_name | VARCHAR(100) | NOT NULL | 产品名称 |
+| grade | VARCHAR(20) | NOT NULL | 会员等级 |
+| duration_days | INT | NOT NULL | 时长(天) |
+| price | DECIMAL(10,2) | NOT NULL | 价格 |
+| original_price | DECIMAL(10,2) | NULL | 原价 |
+| daily_generations | INT | DEFAULT -1 | 每日生成次数(-1无限) |
+| features | JSON | NULL | 权益列表 |
+| status | INT | DEFAULT 1 | 状态:0-禁用 1-启用 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**初始数据**:
+- 月度会员 (monthly_vip): 30天, 19.90元, 10次/天
+- 季度会员 (quarterly_vip): 90天, 49.90元, 20次/天
+- 年度会员 (yearly_vip): 365天, 199.00元, 50次/天
+- 终身会员 (lifetime_vip): 永久, 499.00元, -1(无限)
+
+---
+
+### 3.7 运营
+
+#### 3.7.1 Banner表 (banners)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | BannerID |
+| title | VARCHAR(100) | NOT NULL | 标题 |
+| image_url | VARCHAR(500) | NOT NULL | 图片URL |
+| link_type | VARCHAR(20) | NOT NULL | 跳转类型:url/post/template |
+| link_value | VARCHAR(500) | NOT NULL | 跳转值 |
+| position | VARCHAR(20) | NOT NULL | 位置:home_top/template_top |
+| sort | INT | DEFAULT 0 | 排序 |
+| status | VARCHAR(20) | DEFAULT 'active' | 状态 |
+| start_time | DATETIME | NOT NULL | 开始时间 |
+| end_time | DATETIME | NOT NULL | 结束时间 |
+| create__time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+#### 3.7.2 话题表 (operation_topics)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 话题ID |
+| topic_id | VARCHAR(20) | NOT NULL, UNIQUE | 话题标识 |
+| name | VARCHAR(100) | NOT NULL | 话题名称 |
+| description | VARCHAR(500) | NULL | 描述 |
+| cover_url | VARCHAR(500) | NULL | 封面图 |
+| is_official | INT | DEFAULT 0 | 是否官方:0-用户创建 1-官方创建 |
+| status | VARCHAR(20) | DEFAULT 'active' | 状态:active/closed |
+| post_count | INT | DEFAULT 0 | 帖子数 |
+| participant_count | INT | DEFAULT 0 | 参与人数 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+#### 3.7.3 专题表 (special_topics)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 专题ID |
+| name | VARCHAR(100) | NOT NULL | 专题名称 |
+| description | VARCHAR(500) | NULL | 描述 |
+| cover_url | VARCHAR(500) | NOT NULL | 封面图URL |
+| template_ids | JSON | NULL | 关联模板ID数组 |
+| start_time | DATETIME | NOT NULL | 开始时间 |
+| end_time | DATETIME | NOT NULL | 结束时间 |
+| status | INT | DEFAULT 1 | 状态:0-下架 1-上架 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+#### 3.7.4 推送记录表 (push_records)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| push_id | VARCHAR(20) | NOT NULL, UNIQUE | 推送ID |
+| title | VARCHAR(100) | NOT NULL | 标题 |
+| content | TEXT | NOT NULL | 内容 |
+| push_type | VARCHAR(20) | NOT NULL | 推送类型:system/activity |
+| target_type | VARCHAR(20) | NOT NULL | 目标类型:all/tag/user |
+| target_param | VARCHAR(200) | NULL | 目标参数 |
+| schedule_time | DATETIME | NULL | 定时发送时间 |
+| send_time | DATETIME | NULL | 实际发送时间 |
+| total_count | INT | DEFAULT 0 | 推送总数 |
+| success_count | INT | DEFAULT 0 | 成功数 |
+| click_count | INT | DEFAULT 0 | 点击数 |
+| status | VARCHAR(20) | DEFAULT 'pending' | 状态:pending/sending/sent/failed |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_status (status)
+- idx_schedule_time (schedule_time)
+
+---
+
+### 3.8 后台管理
+
+#### 3.8.1 管理员表 (admin_users)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 管理员ID |
+| username | VARCHAR(50) | NOT NULL | 用户名 |
+| password | VARCHAR(100) | NOT NULL | 密码(BCrypt) |
+| nickname | VARCHAR(50) | NULL | 昵称 |
+| role_id | UUID | NOT NULL, FK | 角色ID |
+| status | VARCHAR(20) | DEFAULT 'active' | 状态 |
+| last_login_time | DATETIME | NULL | 最后登录时间 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_username (username)
+
+#### 3.8.2 角色表 (roles)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 角色ID |
+| name | VARCHAR(50) | NOT NULL | 角色名称 |
+| permissions | JSON | NOT NULL | 权限列表 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**初始角色**:
+- 超级管理员: 全部权限
+- 运营: 用户管理、内容审核、运营管理、数据统计
+- 客服: 用户管理、内容查看
+
+#### 3.8.3 操作日志表 (admin_logs)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 日志ID |
+| admin_user_id | UUID | NOT NULL | 管理员ID |
+| action | VARCHAR(50) | NOT NULL | 操作 |
+| target_type | VARCHAR(20) | NULL | 目标类型 |
+| target_id | UUID | NULL | 目标ID |
+| content | VARCHAR(500) | NULL | 内容 |
+| ip | VARCHAR(50) | NULL | IP地址 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**索引**:
+- idx_admin_user_id (admin_user_id)
+- idx_create_time (create_time)
+
+---
+
+### 3.9 统计
+
+#### 3.9.1 日统计表 (daily_stats)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| stat_date | DATE | NOT NULL, UNIQUE | 统计日期 |
+| dau | INT | DEFAULT 0 | 活跃用户数 |
+| new_user_count | INT | DEFAULT 0 | 新增用户 |
+| retention_1d | DECIMAL(5,2) | NULL | 次日留存率 |
+| retention_7d | DECIMAL(5,2) | NULL | 7日留存率 |
+| retention_30d | DECIMAL(5,2) | NULL | 30日留存率 |
+| generation_count | INT | DEFAULT 0 | 生成次数 |
+| avg_bead_count | INT | DEFAULT 0 | 平均粒数 |
+| avg_color_count | INT | DEFAULT 0 | 平均色号数 |
+| export_count | INT | DEFAULT 0 | 导出次数 |
+| post_count | INT | DEFAULT 0 | 发帖数 |
+| work_count | INT | DEFAULT 0 | 作品数 |
+| tutorial_count | INT | DEFAULT 0 | 教程数 |
+| comment_count | INT | DEFAULT 0 | 评论数 |
+| like_count | INT | DEFAULT 0 | 点赞数 |
+| share_count | INT | DEFAULT 0 | 分享数 |
+| favorite_count | INT | DEFAULT 0 | 收藏数 |
+| member_order_count | INT | DEFAULT 0 | 会员订单数 |
+| member_revenue | DECIMAL(10,2) | DEFAULT 0 | 会员收入 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+
+**索引**:
+- idx_stat_date (stat_date) UNIQUE
+
+---
+### 3.10 系统配置
+
+#### 3.10.1 系统配置表 (system_configs)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| config_key | VARCHAR(50) | NOT NULL, UNIQUE | 配置键 |
+| config_value | TEXT | NULL | 配置值 |
+| config_type | VARCHAR(20) | NULL | 类型:string/number/json/boolean |
+| description | VARCHAR(200) | NULL | 描述 |
+| status | INT | DEFAULT 1 | 状态:0-禁用 1-启用 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**初始配置**:
+- 通用配置: app_name, user_agreement, privacy_policy, customer_service, comment_enabled, sensitive_filter
+- AI配置: default_bead_count, default_difficulty, default_style, free_daily_generations, generation_timeout, max_image_size
+
+**索引**:
+- idx_config_key (config_key) UNIQUE
+
+#### 3.10.2 MARD色号表 (mard_colors)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| color_no | VARCHAR(20) | NOT NULL, UNIQUE | 色号(如M01) |
+| color_name | VARCHAR(50) | NOT NULL | 颜色名称 |
+| rgb | VARCHAR(10) | NOT NULL | RGB值 |
+| lab | VARCHAR(50) | NULL | LAB值 |
+| category | VARCHAR(20) | NULL | 分类:red/orange/yellow/green/blue/purple/gray/black/white/special |
+| is_common | INT | DEFAULT 0 | 是否常用:0-否 1-是 |
+| status | INT | DEFAULT 1 | 状态:0-禁用 1-启用 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_color_no (color_no) UNIQUE
+- idx_category (category)
+
+#### 3.10.3 耗材套装表 (bead_kits)
+| 字段名 | 类型 | 约束 | 说明 |
+|--------|------|------|------|
+| id | UUID | PK | 记录ID |
+| kit_id | VARCHAR(20) | NOT NULL, UNIQUE | 套装ID |
+| kit_name | VARCHAR(100) | NOT NULL | 套装名称 |
+| brand | VARCHAR(20) | DEFAULT 'MARD' | 品牌 |
+| color_count | INT | NOT NULL | 色号数量 |
+| bead_count | INT | NOT NULL | 豆子总数 |
+| price | DECIMAL(10,2) | NOT NULL | 价格 |
+| purchase_url | VARCHAR(500) | NULL | 购买链接 |
+| status | INT | DEFAULT 1 | 状态:0-禁用 1-启用 |
+| create_time | DATETIME | NOT NULL | 创建时间 |
+| update_time | DATETIME | NOT NULL | 更新时间 |
+
+**索引**:
+- idx_kit_id (kit_id) UNIQUE
+
+---
+
+## 4. 性能优化建议
+
+### 4.1 索引优化
+- 高频查询字段添加索引
+- 避免全表扫描
+- 复合索引注意顺序
+- 定期分析索引使用率
+
+### 4.2 分表策略
+- 消息表按月分表
+- 帖子量大时按用户ID分表
+
+### 4.3 缓存策略
+- 用户信息: Redis缓存
+- 热点模板: Redis缓存
+- 计数缓存: Redis
+
+---
+
+## 5. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v1.0 | 2026-06-07 | 初版，核心业务表结构 |
+| v1.1 | 2026-06-07 | 补充详细设计中的数据库表：会员产品、敏感词、举报、审核记录、模板标签、专题、推送记录、系统配置、MARD色号、耗材套装；优化日统计表字段 |
+
+---
+*数据库设计说明书结束*

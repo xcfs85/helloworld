@@ -1,0 +1,815 @@
+# 内容管理模块详细设计
+> **模块**: 后台管理系统 - 内容管理
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 模块概述
+
+### 1.1 功能定位
+
+内容管理模块用于审核移动端用户发布的内容(帖子、评论)，管理敏感词，处理用户举报，维护社区内容质量。
+
+### 1.2 功能清单
+
+| 功能 | 说明 | 优先级 |
+|------|------|--------|
+| 帖子审核 | 待审帖子列表、详情查看、审核通过/拒绝 | P0 |
+| 评论审核 | 待审评论列表、详情查看、审核通过/隐藏 | P1 |
+| 敏感词管理 | 敏感词增删改查、批量导入导出 | P1 |
+| 举报管理 | 举报列表、处理举报、批量处理 | P1 |
+
+---
+
+## 2. 技术架构
+
+### 2.1 技术选型
+
+| 技术 | 说明 |
+|------|------|
+| ORM | SqlSugar |
+| 缓存 | Redis (敏感词缓存) |
+| AI审核 | 阿里云内容安全 / 百度内容审核 |
+| 敏感词匹配 | DFA (Deterministic Finite Automaton) 算法 |
+
+### 2.2 项目结构
+
+```
+Pindou.Admin/
+├── Controllers/
+│   ├── PostController.cs          # 帖子审核控制器
+│   ├── CommentController. cs      # 评论管理控制器
+│   ├── SensitiveWordController.cs # 敏感词控制器
+│   └── ReportController. cs       # 举报控制器
+├── Services/
+│   ├── IReviewService. cs         # 审核服务接口
+│   ├── ReviewService. cs          # 审核服务实现
+│   ├── ISensitiveService. cs      # 敏感词服务接口
+│   ├── SensitiveService. cs       # 敏感词服务实现
+│   ├── IReportService. cs         # 举报服务接口
+│   └── ReportService. cs          # 举报服务实现
+├── Models/
+│   ├── DTOs/
+│   │   ├── PostReviewRequest. cs  # 帖子审核请求
+│   │   ├── SensitiveWordDTO. cs   # 敏感词DTO
+│   │   └── ReportHandleRequest. cs# 举报处理请求
+│   └── Entities/
+│       ├── Post. cs               # 帖子实体(引用业务库)
+│       ├── Comment. cs            # 评论实体(引用业务库)
+│       ├── SensitiveWord. cs      # 敏感词实体
+│       └── Report. cs             # 举报实体
+└── Filters/
+    ├── SensitiveWordFilter.cs     # 敏感词过滤中间件
+    └── AIReviewFilter.cs          # AI审核中间件
+```
+
+### 2.3 核心服务设计
+
+#### 2.3.1 审核服务 (ReviewService)
+
+```csharp
+public interface IReviewService
+{
+    /// <summary>获取帖子审核列表</summary>
+    Task<PagedList<PostReviewResponse>> GetPostListAsync(PostReviewListRequest request);
+
+    /// <summary>获取帖子详情</summary>
+    Task<PostReviewDetailResponse> GetPostDetailAsync(long id);
+
+    /// <summary>审核通过</summary>
+    Task<Result> ApprovePostAsync(long postId, string remark);
+
+    /// <summary>审核拒绝</summary>
+    Task<Result> RejectPostAsync(PostRejectRequest request);
+
+    /// <summary>批量审核通过</summary>
+    Task<Result> BatchApproveAsync(List<long> postIds);
+
+    /// <summary>批量审核拒绝</summary>
+    Task<Result> BatchRejectAsync(BatchRejectRequest request);
+
+    /// <summary>获取审核统计</summary>
+    Task<ReviewStatsResponse> GetStatsAsync();
+}
+```
+
+#### 2.3.2 敏感词服务 (SensitiveService)
+
+```csharp
+public interface ISensitiveService
+{
+    /// <summary>获取敏感词列表</summary>
+    Task<PagedList<SensitiveWord>> GetListAsync(SensitiveWordQuery query);
+
+    /// <summary>新增敏感词</summary>
+    Task<Result> AddAsync(SensitiveWord word);
+
+    /// <summary>批量新增敏感词</summary>
+    Task<Result> BatchAddAsync(List<string> words, int level, string type);
+
+    /// <summary>修改敏感词</summary>
+    Task<Result> UpdateAsync(long id, SensitiveWord word);
+
+    /// <summary>删除敏感词</summary>
+    Task<Result> DeleteAsync(long id);
+
+    /// <summary>导出敏感词</summary>
+    Task<List<SensitiveWord>> ExportAsync();
+
+    /// <summary>文本敏感词过滤</summary>
+    string Filter(string text);
+
+    /// <summary>检查文本是否包含敏感词</summary>
+    bool ContainsSensitive(string text, out List<string> foundWords);
+}
+```
+
+---
+
+## 3. 数据库设计
+
+### 3.1 表结构
+
+#### 3.1.1 敏感词表 (sensitive_word)
+
+```csharp
+[ SugarTable("sensitive_word") ]
+public class SensitiveWord
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 100, IsNullable = false)]
+    public string Word { get; set; }
+
+    [SugarColumn(DefaultValue = "2")]
+    public int Level { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false)]
+    public string Type { get; set; }
+
+    [SugarColumn(Length = 50)]
+    public string ReplaceWord { get; set; }
+
+    [SugarColumn(DefaultValue = "1")]
+    public int Status { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+
+    public DateTime? UpdateTime { get; set; }
+}
+```
+
+#### 3.1.2 举报表 (report)
+
+```csharp
+[ SugarTable("report") ]
+public class Report
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false, UniqueIndex = "idx_report_id")]
+    public string ReportId { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public long ReporterId { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false)]
+    public string TargetType { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public long TargetId { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public long TargetUserId { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false)]
+    public string Reason { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string Content { get; set; }
+
+    [SugarColumn(ColumnDataType = "json")]
+    public string Images { get; set; }
+
+    [SugarColumn(Length = 20, DefaultValue = "pending")]
+    public string Status { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string HandleResult { get; set; }
+
+    public long? HandlerId { get; set; }
+
+    public DateTime? HandleTime { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+
+    public DateTime? UpdateTime { get; set; }
+}
+```
+
+#### 3.1.3 帖子审核记录表 (post_review_log)
+
+```csharp
+[ SugarTable("post_review_log") ]
+public class PostReviewLog
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public long PostId { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public long ReviewerId { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false)]
+    public string Action { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string Reason { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string Remark { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+}
+```
+
+---
+
+## 4. 接口设计
+
+### 4.1 帖子审核接口
+
+#### 4.1.1 待审核列表
+
+```
+GET /api/admin/v1/post/review/pending
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码，默认1
+- size: 每页条数，默认20
+- type: 帖子类型(可选): work/tutorial/question
+- start_time: 开始时间(可选)
+- end_time: 结束时间(可选)
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "post_id": "p_xxx",
+                "type": "work",
+                "title": "给闺蜜的生日礼物",
+                "user": {
+                    "id": 1,
+                    "nickname": "小美",
+                    "avatar": "https://..."
+                },
+                "media_count": 3,
+                "ai_review": {
+                    "risk_level": "low",
+                    "politics": "pass",
+                    "porn": "pass",
+                    "violence": "pass",
+                    "ad": "pass"
+                },
+                "create_time": "2026-06-07 09:30:00"
+            }
+        ],
+        "total": 23,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.1.2 帖子审核详情
+
+```
+GET /api/admin/v1/post/review/{id}
+Authorization: Bearer {token}
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "id": 1,
+        "post_id": "p_xxx",
+        "user": {
+            "id": 1,
+            "nickname": "小美",
+            "avatar": "https://..."
+        },
+        "type": "work",
+        "title": "给闺蜜的生日礼物",
+        "content": "第一次做拼豆，送给闺蜜",
+        "media": [
+            {"type": "image", "url": "https://..."}
+        ],
+        "topic_names": ["#生日礼物", "#闺蜜"],
+        "bead_params": {
+            "board_size": "50x50",
+            "color_count": 28
+        },
+        "diagram_id": "d_xxx",
+        "ai_review": {
+            "risk_level": "low",
+            "politics": "pass",
+            "porn": "pass",
+            "violence": "pass",
+            "ad": "pass",
+            "copyright": "pass"
+        },
+        "status": "pending",
+        "ip": "123.125.115.110",
+        "device": "iPhone 14 Pro",
+        "create_time": "2026-06-07 09:30:00"
+    }
+}
+```
+
+#### 4.1.3 审核通过
+
+```
+POST /api/admin/v1/post/review/approve
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "post_id": 1,
+    "remark": "内容合规，审核通过"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "审核通过"
+}
+```
+
+#### 4.1.4 审核拒绝
+
+```
+POST /api/admin/v1/post/review/reject
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "post_id": 1,
+    "reason": "ad",
+    "reason_text": "包含广告内容",
+    "remark": "请修改后重新提交"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "已拒绝"
+}
+```
+
+### 4.2 评论管理接口
+
+#### 4.2.1 评论列表
+
+```
+GET /api/admin/v1/comment/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码
+- size: 每页条数
+- post_id: 帖子ID
+- user_id: 评论用户ID
+- status: 状态(normal/hidden/deleted)
+- keyword: 关键词
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "comment_id": "c_xxx",
+                "post_id": 1,
+                "user": {...},
+                "content": "好漂亮啊！",
+                "like_count": 5,
+                "status": "normal",
+                "create_time": "2026-06-07 10:00:00"
+            }
+        ],
+        "total": 100,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.2.2 隐藏评论
+
+```
+POST /api/admin/v1/comment/{id}/hide
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "reason": "包含不当内容"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success"
+}
+```
+
+### 4.3 敏感词接口
+
+#### 4.3.1 敏感词列表
+
+```
+GET /api/admin/v1/sensitive/word/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码
+- size: 每页条数
+- level: 级别(1/2/3)
+- type: 类型
+- keyword: 关键词
+- status: 状态
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "word": "测试敏感词",
+                "level": 1,
+                "type": "politics",
+                "replace_word": "**",
+                "status": 1,
+                "create_time": "2026-01-01 10:00:00"
+            }
+        ],
+        "total": 100,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.3.2 批量新增
+
+```
+POST /api/admin/v1/sensitive/word/batch
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "words": ["敏感词1", "敏感词2", "敏感词3"],
+    "level": 2,
+    "type": "ad"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success",
+    "data": {
+        "success_count": 3,
+        "fail_count": 0
+    }
+}
+```
+
+### 4.4 举报接口
+
+#### 4.4.1 举报列表
+
+```
+GET /api/admin/v1/report/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码
+- size: 每页条数
+- status: pending/ignored/warned/ban_content/ban_user
+- reason: 举报原因
+- start_time: 开始时间
+- end_time: 结束时间
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "report_id": "r_xxx",
+                "reporter": {
+                    "id": 1,
+                    "nickname": "小王"
+                },
+                "target_type": "post",
+                "target_id": 1,
+                "target_user": {
+                    "id": 2,
+                    "nickname": "小李"
+                },
+                "reason": "ad",
+                "reason_text": "垃圾广告",
+                "content": "详情内容...",
+                "images": [...],
+                "status": "pending",
+                "create_time": "2026-06-07 10:00:00"
+            }
+        ],
+        "total": 50,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.4.2 处理举报
+
+```
+POST /api/admin/v1/report/handle
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "report_id": 1,
+    "action": "warned",
+    "handle_result": "已对用户进行警告处理",
+    "ban_content": true,
+    "ban_user": false,
+    "ban_days": 0
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success"
+}
+```
+
+---
+
+## 5. 核心流程设计
+
+### 5.1 帖子审核流程
+
+```
+1. 用户发布帖子
+   └─> 调用AI审核服务进行初筛
+   └─> AI返回风险等级和详情
+
+2. 帖子进入待审核列表
+   └─> 后端存储帖子，状态为pending
+
+3. 管理员审核
+   ├─> 通过: 更新状态为approved，通知用户
+   ├─> 拒绝: 更新状态为rejected，记录原因，通知用户
+   └─> 批量处理: 支持多选批量审核
+
+4. 记录审核日志
+   └─> 记录审核人、审核时间、审核结果
+```
+
+### 5.2 AI审核集成
+
+```csharp
+public class AIReviewService
+{
+    public async Task<AIReviewResult> ReviewAsync(string text, List<string> images)
+    {
+        // 调用阿里云内容安全API
+        var result = await _aliyunClient.ReviewTextAsync(text);
+        var imageResult = await _aliyunClient.ReviewImagesAsync(images);
+
+        return new AIReviewResult
+        {
+            RiskLevel = result.RiskLevel,
+            Politics = result.Label,
+            Porn = result.Label,
+            Violence = result.Label,
+            Ad = result.Label,
+            Details = result.Details
+        };
+    }
+}
+```
+
+### 5.3 敏感词过滤流程
+
+```
+1. 初始化敏感词库
+   └─> 从数据库加载敏感词到内存
+   └─> 构建DFA算法树
+
+2. 文本过滤
+   ├─> 遍历DFA树检测敏感词
+   ├─> 根据敏感词级别进行处理
+   └─> 替换/拦截/警告
+
+3. 敏感词更新
+   └─> 修改敏感词后刷新缓存
+   └─> 异步重建DFA树
+```
+
+### 5.4 DFA敏感词匹配算法
+
+```csharp
+public class DFAFilter
+{
+    private Dictionary<char, object> _filterTree = new();
+
+    /// <summary>构建敏感词树</summary>
+    public void BuildTree(List<string> sensitiveWords)
+    {
+        _filterTree.Clear();
+        foreach (var word in sensitiveWords)
+        {
+            var current = _filterTree;
+            foreach (char c in word)
+            {
+                if (!current.ContainsKey(c))
+                    current[c] = new Dictionary<char, object>();
+                current = (Dictionary<char, object>)current[c];
+            }
+            current['\0'] = new object(); // 结束标记
+        }
+    }
+
+    /// <summary>过滤文本</summary>
+    public string Filter(string text, string replaceChar = "**")
+    {
+        var result = text.ToCharArray();
+        for (int i = 0; i < result.Length; i++)
+        {
+            var current = _filterTree;
+            int matchLength = 0;
+
+            for (int j = i; j < result.Length && current.ContainsKey(result[j]); j++)
+            {
+                current = (Dictionary<char, object>)current[result[j]];
+                if (current.ContainsKey('\0'))
+                {
+                    matchLength = j - i + 1;
+                }
+            }
+
+            if (matchLength > 0)
+            {
+                for (int k = i; k < i + matchLength; k++)
+                {
+                    result[k] = replaceChar[0];
+                }
+            }
+        }
+
+        return new string(result);
+    }
+
+    /// <summary>检测是否包含敏感词</summary>
+    public bool ContainsSensitive(string text, out List<string> foundWords)
+    {
+        foundWords = new List<string>();
+        // 实现检测逻辑
+        return foundWords.Count > 0;
+    }
+}
+```
+
+---
+
+## 6. 审核规则
+
+### 6.1 审核维度
+
+| 维度 | 检查项 | 处理方式 |
+|------|--------|----------|
+| 政治敏感 | 涉政/涉领导人 | 拒绝+警告 |
+| 色情低俗 | 涉黄/暴露内容 | 拒绝+警告 |
+| 暴恐血腥 | 暴力/恐怖 | 拒绝+警告 |
+| 广告营销 | 二维码/微信号/引流 | 拒绝+警告 |
+| 版权侵权 | 未授权IP形象 | 警告+限流 |
+| 垃圾内容 | 重复/无意义 | 拒绝 |
+| 虚假信息 | 谣言/误导 | 限流 |
+
+### 6.2 违规处罚
+
+| 次数 | 处罚 |
+|------|------|
+| 第一次 | 警告+内容下架 |
+| 第二次 | 禁言24小时 |
+| 第三次 | 禁言7天 |
+| 第四次 | 永久封禁 |
+
+### 6.3 举报原因类型
+
+| 类型 | 说明 |
+|------|------|
+| ad | 垃圾广告 |
+| porn | 违规内容 |
+| violence | 暴恐内容 |
+| 侵权 | 版权/肖像权 |
+| fake | 虚假信息 |
+| insult | 人身攻击 |
+| other | 其他 |
+
+---
+
+## 7. 异常处理
+
+| 场景 | 处理 |
+|------|------|
+| 帖子不存在 | 返回404 |
+| 帖子已审核 | 返回"帖子已审核，不能重复操作" |
+| 审核失败 | 返回具体错误原因，记录日志 |
+| 敏感词已存在 | 返回"敏感词已存在" |
+| 举报处理异常 | 返回"处理失败，请重试" |
+
+---
+
+## 8. 前端设计
+
+### 8.1 页面路由
+
+| 页面 | 路由 | 权限 |
+|------|------|------|
+| 帖子审核 | /content/post-review | content:view |
+| 帖子详情 | /content/post-review/:id | content:view |
+| 评论管理 | /content/comment | content:view |
+| 敏感词管理 | /content/sensitive-word | content:view |
+| 举报管理 | /content/report | content:view |
+
+### 8.2 Vue组件结构
+
+```
+views/
+└── content/
+    ├── PostReviewList. vue      # 帖子审核列表
+    ├── PostReviewDetail. vue    # 帖子审核详情
+    ├── CommentList. vue         # 评论列表
+    ├── SensitiveWord. vue       # 敏感词管理
+    ├── SensitiveImport. vue     # 敏感词导入
+    └── ReportList. vue          # 举报列表
+```
+
+---
+
+## 9. 验收标准
+
+### 9.1 功能验收
+
+- [ ] 帖子审核列表展示正常
+- [ ] 帖子详情展示完整
+- [ ] 审核通过功能正常
+- [ ] 审核拒绝功能正常
+- [ ] 批量审核功能正常
+- [ ] 评论列表/隐藏/删除功能正常
+- [ ] 敏感词增删改查正常
+- [ ] 敏感词导入导出正常
+- [ ] 举报列表展示正常
+- [ ] 举报处理功能正常
+
+### 9.2 审核效率
+
+- [ ] AI初审2秒内完成
+- [ ] 人工审核24小时内处理
+- [ ] 批量操作响应流畅
+
+---
+
+## 10. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v1.0 | 2026-06-07 | 初稿，基于概要设计 |
+
+---
+
+*内容管理模块详细设计结束*

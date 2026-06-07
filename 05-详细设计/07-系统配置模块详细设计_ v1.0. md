@@ -1,0 +1,662 @@
+# 系统配置模块详细设计
+> **模块**: 后台管理系统 - 系统配置
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 模块概述
+
+### 1.1 功能定位
+
+系统配置模块用于管理APP和系统的各种配置参数，包括通用配置、AI配置、色板配置等。
+
+### 1.2 功能清单
+
+| 功能 | 说明 | 优先级 |
+|------|------|--------|
+| 通用配置 | APP名称/协议/客服等 | P0 |
+| AI配置 | 生成参数/免费次数等 | P1 |
+| 色板配置 | MARD色板/套装定义 | P1 |
+
+---
+
+## 2. 技术架构
+
+### 2.1 技术选型
+
+| 技术 | 说明 |
+|------|------|
+| ORM | SqlSugar |
+| 缓存 | Redis (配置缓存) |
+| 配置加载 | 内存缓存 + Redis二级缓存 |
+
+### 2.2 项目结构
+
+```
+Pindou.Admin/
+├── Controllers/
+│   ├── ConfigController. cs       # 配置管理控制器
+│   ├── ColorController. cs        # 色号管理控制器
+│   └── KitController. cs          # 套装管理控制器
+├── Services/
+│   ├── IConfigService. cs         # 配置服务接口
+│   ├── ConfigService. cs          # 配置服务实现
+│   ├── IColorService. cs          # 色号服务接口
+│   ├── ColorService. cs           # 色号服务实现
+│   ├── IKitService. cs            # 套装服务接口
+│   └── KitService. cs             # 套装服务实现
+├── Models/
+│   ├── DTOs/
+│   │   ├── ConfigDTO. cs          # 配置DTO
+│   │   ├── ColorDTO. cs           # 色号DTO
+│   │   └── KitDTO. cs             # 套装DTO
+│   └── Entities/
+│       ├── SystemConfig. cs       # 系统配置实体
+│       ├── MardColor. cs          # MARD色号实体
+│       └── BeadKit. cs            # 耗材套装实体
+└── Common/
+    └── ConfigHelper. cs           # 配置帮助类
+```
+
+### 2.3 核心服务设计
+
+#### 2.3.1 配置服务 (ConfigService)
+
+```csharp
+public interface IConfigService
+{
+    /// <summary>获取配置</summary>
+    Task<string> GetConfigAsync(string key);
+
+    /// <summary>获取配置(带默认值)</summary>
+    Task<T> GetConfigAsync<T>(string key, T defaultValue);
+
+    /// <summary>获取所有配置</summary>
+    Task<List<SystemConfig>> GetAllConfigAsync();
+
+    /// <summary>设置配置</summary>
+    Task<Result> SetConfigAsync(string key, string value, string description);
+
+    /// <summary>批量设置配置</summary>
+    Task<Result> BatchSetConfigAsync(Dictionary<string, string> configs);
+
+    /// <summary>刷新配置缓存</summary>
+    Task RefreshCacheAsync(string key);
+}
+```
+
+---
+
+## 3. 数据库设计
+
+### 3.1 表结构
+
+#### 3.1.1 系统配置表 (system_config)
+
+```csharp
+[ SugarTable("system_config") ]
+public class SystemConfig
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 50, IsNullable = false, UniqueIndex = "idx_config_key")]
+    public string ConfigKey { get; set; }
+
+    [SugarColumn(ColumnDataType = "text")]
+    public string ConfigValue { get; set; }
+
+    [SugarColumn(Length = 20)]
+    public string ConfigType { get; set; }
+
+    [SugarColumn(Length = 200)]
+    public string Description { get; set; }
+
+    [SugarColumn(DefaultValue = "1")]
+    public int Status { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+
+    public DateTime? UpdateTime { get; set; }
+}
+```
+
+#### 3.1.2 MARD色号表 (mard_color)
+
+```csharp
+[ SugarTable("mard_color") ]
+public class MardColor
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false, UniqueIndex = "idx_color_no")]
+    public string ColorNo { get; set; }
+
+    [SugarColumn(Length = 50, IsNullable = false)]
+    public string ColorName { get; set; }
+
+    [SugarColumn(Length = 10, IsNullable = false)]
+    public string Rgb { get; set; }
+
+    [SugarColumn(Length = 50)]
+    public string Lab { get; set; }
+
+    [SugarColumn(Length = 20)]
+    public string Category { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int IsCommon { get; set; }
+
+    [SugarColumn(DefaultValue = "1")]
+    public int Status { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+
+    public DateTime? UpdateTime { get; set; }
+}
+```
+
+#### 3.1.3 耗材套装表 (bead_kit)
+
+```csharp
+[ SugarTable("bead_kit") ]
+public class BeadKit
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false, UniqueIndex = "idx_kit_id")]
+    public string KitId { get; set; }
+
+    [SugarColumn(Length = 100, IsNullable = false)]
+    public string KitName { get; set; }
+
+    [SugarColumn(Length = 20, DefaultValue = "MARD")]
+    public string Brand { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public int ColorCount { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public int BeadCount { get; set; }
+
+    [SugarColumn(Length = 10, IsNullable = false, DecimalDigits = "2")]
+    public decimal Price { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string PurchaseUrl { get; set; }
+
+    [SugarColumn(DefaultValue = "1")]
+    public int Status { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+
+    public DateTime? UpdateTime { get; set; }
+}
+```
+
+### 3.2 初始配置数据
+
+```csharp
+// 通用配置
+var generalConfigs = new List<SystemConfig>
+{
+    new SystemConfig { ConfigKey = "app_name", ConfigValue = "拼豆", ConfigType = "string", Description = "APP名称", Status = 1 },
+    new SystemConfig { ConfigKey = "user_agreement", ConfigValue = "...", ConfigType = "string", Description = "用户协议内容", Status = 1 },
+    new SystemConfig { ConfigKey = "privacy_policy", ConfigValue = "...", ConfigType = "string", Description = "隐私政策内容", Status = 1 },
+    new SystemConfig { ConfigKey = "customer_service", ConfigValue = "support@pindou.com", ConfigType = "string", Description = "客服联系方式", Status = 1 },
+    new SystemConfig { ConfigKey = "comment_enabled", ConfigValue = "true", ConfigType = "boolean", Description = "评论开关", Status = 1 },
+    new SystemConfig { ConfigKey = "sensitive_filter", ConfigValue = "true", ConfigType = "boolean", Description = "敏感词过滤", Status = 1 }
+};
+
+// AI配置
+var aiConfigs = new List<SystemConfig>
+{
+    new SystemConfig { ConfigKey = "default_bead_count", ConfigValue = "3000", ConfigType = "number", Description = "默认粒数", Status = 1 },
+    new SystemConfig { ConfigKey = "default_difficulty", ConfigValue = "normal", ConfigType = "string", Description = "默认难度", Status = 1 },
+    new SystemConfig { ConfigKey = "default_style", ConfigValue = "realistic", ConfigType = "string", Description = "默认风格", Status = 1 },
+    new SystemConfig { ConfigKey = "free_daily_generations", ConfigValue = "3", ConfigType = "number", Description = "免费用户每日生成次数", Status = 1 },
+    new SystemConfig { ConfigKey = "generation_timeout", ConfigValue = "120", ConfigType = "number", Description = "生成超时时间(秒)", Status = 1 },
+    new SystemConfig { ConfigKey = "max_image_size", ConfigValue = "20", ConfigType = "number", Description = "图片最大MB", Status = 1 }
+};
+```
+
+---
+
+## 4. 接口设计
+
+### 4.1 配置接口
+
+#### 4.1.1 获取配置
+
+```
+GET /api/admin/ v1/config/get?key=app_name
+Authorization: Bearer {token}
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "config_key": "app_name",
+        "config_value": "拼豆",
+        "config_type": "string",
+        "description": "APP名称"
+    }
+}
+```
+
+#### 4.1.2 设置配置
+
+```
+POST /api/ admin/v1/config/set
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "key": "app_name",
+    "value": "拼豆助手",
+    "description": "APP名称(更新)"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success"
+}
+```
+
+#### 4.1.3 配置列表
+
+```
+GET /api/admin/v1/config/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- config_type: 配置类型(可选): string/number/json/boolean
+- keyword: 关键词(可选)
+- status: 状态(可选)
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            { "config_key": "app_name", "config_value": "拼豆", "config_type": "string", "description": "APP名称", "status": 1 },
+            { "config_key": "free_daily_generations", "config_value": "3", "config_type": "number", "description": "免费用户每日生成次数", "status": 1 }
+        ],
+        "total": 10,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+### 4.2 色板接口
+
+#### 4.2.1 色号列表
+
+```
+GET /api/admin/v1/color/ list
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码，默认为1
+- size: 每页条数，默认为50
+- color_no: 色号(可选)
+- color_name: 颜色名称(可选)
+- category: 分类(可选): red/orange/yellow/green/blue/purple/gray/black/white/special
+- is_common: 是否常用(可选): 0/1
+- status: 状态(可选)
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            { "id": 1, "color_no": "1", "color_name": "红色", "rgb": "#FF0000", "lab": "50;80;50", "category": "red", "is_common": 1, "status": 1 },
+            { "id": 2, "color_no": "2", "color_name": "橙色", "rgb": "#FF8000", "lab": "60;60;60", "category": "orange", "is_common": 1, "status": 1 }
+        ],
+        "total": 150,
+        "page": 1,
+        "size": 50
+    }
+}
+```
+
+#### 4.2.2 新增色号
+
+```
+POST /api/admin/v1/color
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "color_no": "200",
+    "color_name": "肤色", "rgb": "#FFCC99", "lab": "85;10;15", "category": "special", "is_common": 1
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success"
+}
+```
+
+#### 4.2.3 批量导入色号
+
+```
+POST /api/admin/v1/color/batch
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request: {
+    "colors": [
+        {"color_no": "201", "color_name": "浅粉", "rgb": "#FFCCCC", "category": "red"},
+        {"color_no": "202", "color_name": "深粉", "rgb": "#FF9999", "category": "red"}
+    ],
+    "category": "red"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success",
+    "data": {
+        "success_count": 2,
+        "fail_count": 0
+    }
+}
+```
+
+### 4.3 套装接口
+
+#### 4.3.1 套装列表
+
+```
+GET /api/admin/v1/kit/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- brand: 品牌(可选)
+- status: 状态(可选)
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "kit_id": "kit_001",
+                "kit_name": "MARD 27色入门套装",
+                "brand": "MARD",
+                "color_count": 27,
+                "bead_count": 5000,
+                "price": 29.90,
+                "purchase_url": "https://...",
+                "status": 1
+            }
+        ],
+        "total": 10,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.3.2 新增套装
+
+```
+POST /api/admin/v1/kit
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "kit_id": "kit_005", "kit_name": "MARD 62色进阶套装", "brand": "MARD",
+    "color_count": 62, "bead_count": 10000, "price": 89.00,
+    "purchase_url": "https://..."
+}Response:
+{
+    "code": 0,
+    "message": "success"
+}
+```
+
+#### 4.3.3 推荐规则
+
+```
+GET /api/admin/v1/kit/rule
+Authorization: Bearer {token}Response:
+{
+    "code": 0,    "data": {        "color_count": 50,        "bead_count": 8000,
+        "price_max": 150.00,        "recommended_kits": [            { "kit_id": "kit_003", "match_score": 0.95 },
+            { "kit_id": "kit_004", "match_score": 0.90 }        ]
+    }
+}
+```
+
+---
+
+## 5. 核心流程设计
+
+### 5.1 配置读取流程
+
+```csharp
+public async Task<string> GetConfigAsync(string key)
+{
+    // 1. 检查缓存
+    var cacheKey = $"config:{key}";
+    var cached = await _redis.GetAsync<string>(cacheKey);
+    if (cached != null) return cached;
+
+    // 2. 查询数据库
+    var config = await _repository.GetByKeyAsync(key);
+    if (config == null) return null;
+
+    // 3. 缓存结果(10分钟)
+    await _redis.SetAsync(cacheKey, config.ConfigValue, TimeSpan.FromMinutes(10));
+
+    return config.ConfigValue;
+}
+```
+
+### 5.2 配置更新流程
+
+```csharp
+public async Task<Result> SetConfigAsync(string key, string value, string description)
+{
+    // 1. 更新数据库
+    var config = await _repository.GetByKeyAsync(key);
+    if (config == null)
+    {
+        // 新增配置
+        config = new SystemConfig { ConfigKey = key, ConfigValue = value, Description = description };
+        await _repository.InsertAsync(config);
+    }
+    else
+    {
+        // 更新配置
+        config.ConfigValue = value;
+        if (description != null) config.Description = description;
+        await _repository.UpdateAsync(config);
+    }
+
+    // 2. 清除缓存
+    await _redis.DeleteAsync($"config:{key}");
+
+    // 3. 记录操作日志
+    await _logService.LogAsync("config:set", $"设置配置 {key} = {value}");
+
+    return Result.Success();
+}
+```
+
+### 5.3 色号匹配推荐
+
+```csharp
+public class ColorRecommender
+{
+    /// <summary>根据模板色号推荐套装</summary>
+    public List<BeadKit> RecommendKits(List<string> requiredColors)
+    {
+        var allKits = _kitRepository.GetAll();
+
+        return allKits
+            .Select(kit => new
+            {
+                Kit = kit,
+                MatchScore = CalculateMatchScore(kit, requiredColors)
+            })
+            .Where(x => x.MatchScore > 0.7)
+            .OrderByDescending(x => x.MatchScore)
+            .Select(x => x.Kit)
+            .ToList();
+    }
+
+    private double CalculateMatchScore(BeadKit kit, List<string> requiredColors)
+    {
+        // 检查套装颜色是否覆盖所需颜色
+        var kitColors = _colorRepository.GetByKit(kit.KitId);
+        var matchedColors = requiredColors.Intersect(kitColors).Count();
+
+        return (double)matchedColors / requiredColors.Count;
+    }
+}
+```
+
+---
+
+## 6. 业务规则
+
+### 6.1 配置规则
+
+| 配置键 | 类型 | 说明 | 默认值 |
+|--------|------|------|--------|
+| app_name | string | APP名称 | 拼豆 |
+| user_agreement | string | 用户协议内容 | - |
+| privacy_policy | string | 隐私政策内容 | - |
+| customer_service | string | 客服联系方式 | - |
+| comment_enabled | boolean | 评论开关 | true |
+| sensitive_filter | boolean | 敏感词过滤 | true |
+
+### 6.2 AI配置规则
+
+| 配置键 | 类型 | 说明 | 默认值 |
+|--------|------|------|--------|
+| default_bead_count | number | 默认粒数 | 3000 |
+| default_difficulty | string | 默认难度 | normal |
+| default_style | string | 默认风格 | realistic |
+| free_daily_generations | number | 免费用户每日生成次数 | 3 |
+| generation_timeout | number | 生成超时时间(秒) | 120 |
+| max_image_size | number | 图片最大MB | 20 |
+
+### 6.3 色号分类
+
+| 分类编码 | 分类名称 | 说明 |
+|----------|----------|------|
+| red | 红色系 | 红、粉、橙红等 |
+| orange | 橙色系 | 橙、杏、驼色等 |
+| yellow | 黄色系 | 黄、浅黄、米黄等 |
+| green | 绿色系 | 绿、浅绿、草绿等 |
+| blue | 蓝色系 | 蓝、天蓝、藏青等 |
+| purple | 紫色系 | 紫、浅紫、薰衣草等 |
+| gray | 灰色系 | 灰、深灰、银色等 |
+| black | 黑色系 | 黑、深棕等 |
+| white | 白色系 | 白、象牙白等 |
+| special | 特殊色 | 肤色、金属色等 |
+
+---
+
+## 7. 异常处理
+
+| 场景 | 处理 |
+|------|------|
+| 配置不存在 | 返回默认值或空 |
+| 配置值类型错误 | 返回"配置值类型错误" |
+| 色号已存在 | 返回"色号已存在" |
+| 套装不存在 | 返回"套装不存在" |
+| 权限不足 | 返回403，"无配置权限" |
+
+---
+
+## 8. 前端设计
+
+### 8.1 页面路由
+
+| 页面 | 路由 | 权限 |
+|------|------|------|
+| 通用配置 | /config/general | config:view |
+| AI配置 | /config/ai | config:view |
+| 色板管理 | /config/color | config:view |
+| 套装管理 | /config/kit | config:view |
+
+### 8.2 Vue组件结构
+
+```
+views/
+└── config/
+    ├── GeneralConfig. vue      # 通用配置
+    ├── AIConfig. vue           # AI配置
+    ├── ColorList. vue          # 色号列表
+    ├── ColorImport. vue        # 色号导入
+    └── KitList. vue            # 套装列表
+```
+
+### 8.3 配置编辑组件
+
+```vue
+<template>
+  <el-form :model="form" label-width="120px">
+    <el-form-item label="配置名称">
+      <el-input v-model="form.config_key" disabled />
+    </el-form-item>
+    <el-form-item label="配置值">
+      <el-input v-if="form.config_type === 'string'" v-model="form.config_value" />
+      <el-input-number v-if="form.config_type === 'number'" v-model.number="form.config_value" />
+      <el-switch v-if="form.config_type === 'boolean'" v-model="form.config_value" />
+    </el-form-item>
+    <el-form-item>
+      <el-button type="primary" @click="handleSave">保存</el-button>
+    </el-form-item>
+  </el-form>
+</template>
+```
+
+---
+
+## 9. 验收标准
+
+### 9.1 功能验收
+
+- [ ] 配置获取正常
+- [ ] 配置保存正常
+- [ ] 色号增删改查正常
+- [ ] 套装增删改查正常
+- [ ] 套装推荐功能正常
+
+### 9.2 数据验收
+
+- [ ] 配置生效正确(修改后立即生效)
+- [ ] 色号数据准确
+- [ ] 套装推荐正确
+
+---
+
+## 10. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v1.0 | 2026-06-07 | 初稿，基于概要设计 |
+
+---
+
+*系统配置模块详细设计结束*

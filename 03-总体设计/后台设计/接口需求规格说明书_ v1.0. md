@@ -1,0 +1,1127 @@
+# 拼豆系统接口需求规格说明书
+
+> **项目**: 拼豆 - AI 照片转拼豆工具
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 接口概述
+
+### 1.1 基础规范
+
+| 项目 | 规范 |
+|------|------|
+| 协议 | HTTPS + TLS 1.3 |
+| 编码 | UTF-8 |
+| 移动端Base URL | `https://api.pindou.com/api/v1` |
+| 后台管理Base URL | `https://admin.pindou.com/api/admin/v1` |
+| 数据格式 | JSON |
+| 认证方式 | Bearer Token (JWT) |
+
+### 1.2 请求头规范
+
+```
+Content-Type: application/json
+Authorization: Bearer {access_token}
+X-Device-Id: {device_id}
+X-App-Version: {version}
+X-Platform: {ios|android}
+X-Request-Id: {uuid}
+```
+
+### 1.3 响应规范
+
+**成功响应**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": { ... },
+  "timestamp": 1234567890
+}
+```
+
+**错误响应**:
+```json
+{
+  "code": -1,
+  "message": "错误信息",
+  "details": { ... },
+  "timestamp": 1234567890
+}
+```
+
+**分页响应**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "list": [...],
+    "page": 1,
+    "page_size": 20,
+    "total": 100
+  },
+  "timestamp": 1234567890
+}
+```
+
+### 1.4 状态码定义
+
+| 状态码 | 说明 |
+|--------|------|
+| 0 | 成功 |
+| -1 | 通用错误 |
+| 1001 | 参数错误 |
+| 1002 | 缺少必填参数 |
+| 2001 | Token无效 |
+| 2002 | Token已过期 |
+| 2003 | 刷新Token失败 |
+| 3001 | 权限不足 |
+| 4001 | 资源不存在 |
+| 5001 | 服务器内部错误 |
+| 5002 | 服务繁忙 |
+
+---
+
+## 2. 认证接口 (M1)
+
+### 2.1 发送短信验证码
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/auth/sms/send` |
+| 方法 | POST |
+| 功能 | 发送手机验证码 |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| phone | string | 是 | 11位手机号 |
+| scene | string | 是 | 场景: login/register/reset |
+
+**请求示例**:
+```json
+{
+  "phone": "13800138000",
+  "scene": "login"
+}
+```
+
+**响应示例**:
+```json
+{
+  "code": 0,
+  "message": "验证码已发送",
+  "data": {
+    "expire_seconds": 300
+  }
+}
+```
+
+### 2.2 手机号登录
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/auth/phone/login` |
+| 方法 | POST |
+| 功能 | 手机号验证码登录 |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| phone | string | 是 | 11位手机号 |
+| code | string | 是 | 6位验证码 |
+| device_id | string | 是 | 设备ID |
+| agree_protocol | boolean | 是 | 是否同意用户协议 |
+
+**响应数据**:
+```json
+{
+  "code": 0,
+  "data": {
+    "user_id": "user_xxx",
+    "access_token": "xxx",
+    "refresh_token": "xxx",
+    "expires_in": 7200,
+    "is_new_user": false,
+    "nickname": "用户昵称",
+    "avatar": "https://xxx/avatar.jpg"
+  }
+}
+```
+
+### 2.3 微信登录
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/auth/wechat/login` |
+| 方法 | POST |
+| 功能 | 微信一键登录 |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| code | string | 是 | 微信授权code |
+| device_id | string | 是 | 设备ID |
+
+**响应数据**: 同手机号登录
+
+### 2.4 Apple登录
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/auth/apple/login` |
+| 方法 | POST |
+| 功能 | Apple ID登录 |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| identity_token | string | 是 | Apple返回的identityToken |
+| device_id | string | 是 | 设备ID |
+
+**响应数据**: 同手机号登录
+
+### 2.5 游客登录
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/auth/guest/login` |
+| 方法 | POST |
+| 功能 | 游客模式登录 |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| device_id | string | 是 | 设备ID |
+
+**响应数据**: 同手机号登录
+
+### 2.6 刷新Token
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/auth/token/refresh` |
+| 方法 | POST |
+| 功能 | 刷新访问令牌 |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| refresh_token | string | 是 | 刷新令牌 |
+
+**响应数据**: 同手机号登录
+
+### 2.7 绑定手机号
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/auth/phone/bind` |
+| 方法 | POST |
+| 功能 | 第三方登录绑定手机号 |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| phone | string | 是 | 11位手机号 |
+| code | string | 是 | 6位验证码 |
+
+**响应数据**: 同手机号登录
+
+---
+
+## 3. 用户接口
+
+### 3.1 获取用户信息
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/user/profile` |
+| 方法 | GET |
+
+**响应数据**:
+```json
+{
+  "code": 0,
+  "data": {
+    "user_id": "user_xxx",
+    "nickname": "用户昵称",
+    "avatar": "https://xxx/avatar.jpg",
+    "phone": "138****8000",
+    "gender": "unknown",
+    "city": "北京",
+    "bio": "个性签名",
+    "is_member": false,
+    "member_expire_time": null,
+    "follow_count": 100,
+    "fans_count": 50,
+    "post_count": 20,
+    "create_time": "2026-01-01T00:00:00Z"
+  }
+}
+```
+
+### 3.2 更新用户资料
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/user/profile` |
+| 方法 | PUT |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| nickname | string | 否 | 昵称 |
+| avatar | string | 否 | 头像URL |
+| gender | string | 否 | unknown/male/female |
+| city | string | 否 | 城市 |
+| bio | string | 否 | 个性签名 |
+
+### 3.3 获取他人主页
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/user/{user_id}/info` |
+| method | GET |
+
+### 3.4 我的关注列表
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/user/follows` |
+| 方法 | GET |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | int | 否 | 页码，默认1 |
+| page_size | int | 否 | 每页数量，默认20 |
+
+### 3.5 我的粉丝列表
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/user/fans` |
+| 方法 | GET |
+
+**请求参数**: 同关注列表
+
+---
+
+## 4. 图片服务接口 (M2)
+
+### 4.1 上传图片
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/image/upload` |
+| 方法 | POST |
+| 功能 | 上传用户图片 |
+
+**请求方式**: Multipart/form-data
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| file | file | 是 | 图片文件 |
+| type | string | 是 | 类型: source/preview/avatar/post |
+
+**响应数据**:
+```json
+{
+  "code": 0,
+  "data": {
+    "file_id": "img_xxx",
+    "file_url": "https://xxx/xxx.jpg",
+    "file_size": 1024000,
+    "width": 1920,
+    "height": 1080
+  }
+}
+```
+
+### 4.2 批量上传图片
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/image/upload/batch` |
+| 方法 | POST |
+| 功能 | 批量上传图片 |
+
+**请求方式**: Multipart/form-data
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| files | file[] | 是 | 图片文件数组，最多9个 |
+
+---
+
+## 5. 拼豆图服务接口 (M2/M5)
+
+### 5.1 创建拼豆图任务
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/diagram/generate` |
+| 方法 | POST |
+| 功能 | 发起AI生成拼豆图任务 |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| source_image_url | string | 是 | 源图片URL |
+| board_size | string | 是 | 底板规格: 29x29/50x50/58x58 |
+| bead_count | int | 是 | 总颗数: 500/1000/2000/3000/5000/8000/10000 |
+| difficulty | string | 是 | 难度: simple/advanced/realistic |
+| style | string | 是 | 风格: realistic/cartoon |
+| crop_rect | object | 否 | 裁剪区域 {x, y, width, height} |
+| rotate_angle | int | 否 | 旋转角度 |
+| flip_horizontal | boolean | 否 | 水平翻转 |
+| flip_vertical | boolean | 否 | 垂直翻转 |
+| brightness | int | 否 | 亮度 -100~100 |
+| contrast | int | 否 | 对比度 -100~100 |
+| saturation | int | 否 | 饱和度 -100~100 |
+
+**响应数据**:
+```json
+{
+  "code": 0,
+  "data": {
+    "task_id": "task_xxx",
+    "status": "processing",
+    "estimated_time": 25
+  }
+}
+```
+
+### 5.2 查询生成任务状态
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/diagram/task/{task_id}` |
+| 方法 | GET |
+
+**响应数据**:
+```json
+{
+  "code": 0,
+  "data": {
+    "task_id": "task_xxx",
+    "status": "processing|completed|failed",
+    "progress": 65,
+    "current_stage": "正在映射色号",
+    "diagram_id": "dia_xxx",
+    "error_message": null
+  }
+}
+```
+
+### 5.3 获取拼豆图详情
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/diagram/{id}` |
+| 方法 | GET |
+
+**响应数据**:
+```json
+{
+  "code": 0,
+  "data": {
+    "id": "dia_xxx",
+    "user_id": "user_xxx",
+    "name": "我的拼豆图",
+    "status": "completed",
+    "source_image_url": "https://xxx/source.jpg",
+    "preview_url": "https://xxx/preview.jpg",
+    "preview_no_grid_url": "https://xxx/preview_no_grid.jpg",
+    "params": {
+      "board_size": "50x50",
+      "bead_count": 5000,
+      "difficulty": "simple",
+      "style": "realistic"
+    },
+    "color_summary": {
+      "total_colors": 28,
+      "total_beads": 5000
+    },
+    "version": 1,
+    "create_time": "2026-01-01T00:00:00Z",
+    "update_time": "2026-01-01T00:05:00Z"
+  }
+}
+```
+
+### 5.4 我的图纸列表
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/diagram/my` |
+| 方法 | GET |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | int | 否 | 页码 |
+| page_size | int | 否 | 每页数量 |
+| status | string | 否 | 状态: draft/completed/beaded |
+| tag | string | 否 | 标签 |
+
+### 5.5 更新图纸信息
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/diagram/{id}` |
+| 方法 | PUT |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| name | string | 否 | 图纸名称 |
+| status | string | 否 | 状态 |
+| tags | string[] | 否 | 标签 |
+
+### 5.6 删除图纸
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/diagram/{id}` |
+| 方法 | DELETE |
+
+### 5.7 获取色号表
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/diagram/{id}/colors` |
+| 方法 | GET |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| sort | string | 否 | 排序: count_desc/count_asc/color_letter/position |
+| filter | string | 否 | 筛选: all/main/secondary/accent |
+
+**响应数据**:
+```json
+{
+  "code": 0,
+  "data": {
+    "total_colors": 28,
+    "total_beads": 5000,
+    "colors": [
+      {
+        "index": 1,
+        "code": "M01",
+        "name": "红色",
+        "rgb": "#FF0000",
+        "bead_count": 234,
+        "percentage": 4.7,
+        "position": "A1-B2"
+      }
+    ]
+  }
+}
+```
+
+### 5.8 难度调整
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/diagram/{id}/adjust` |
+| 方法 | POST |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| target_colors | int | 是 | 目标色号数 |
+
+### 5.9 导出拼豆图
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/diagram/{id}/export` |
+| 方法 | POST |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| format | string | 是 | 格式: png/excel/pdf |
+| include_grid | boolean | 否 | 包含格线，默认true |
+| include_color_table | boolean | 否 | 包含色号表，默认true |
+| page_size | string | 否 | 纸张大小 (PDF用) |
+
+**响应数据**:
+```json
+{
+  "code": 0,
+  "data": {
+    "download_url": "https://xxx/xxx.pdf",
+    "expire_time": "2026-01-02T00:00:00Z"
+  }
+}
+```
+
+### 5.10 重新生成
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/diagram/{id}/regenerate` |
+| 方法 | POST |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| board_size | string | 否 | 底板规格 |
+| bead_count | int | 否 | 总颗数 |
+| difficulty | string | 否 | 难度 |
+| style | string | 否 | 风格 |
+
+---
+
+## 6. 模板服务接口 (M4)
+
+### 6.1 模板列表
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/template/list` |
+| 方法 | GET |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | int | 否 | 页码 |
+| page_size | int | 否 | 每页数量 |
+| category | string | 否 | 分类 |
+| difficulty | string | 否 | 难度 |
+| color_count | string | 否 | 色号数范围 |
+| board_size | string | 否 | 底板规格 |
+| sort | string | 否 | 排序: hot/new/color_count |
+| creator_id | string | 否 | 创作者ID |
+
+### 6.2 模板详情
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/template/{id}` |
+| 方法 | GET |
+
+**响应数据**:
+```json
+{
+  "code": 0,
+  "data": {
+    "id": "tpl_xxx",
+    "name": "圣诞老人",
+    "category": "节日",
+    "tags": ["节日", "亲子", "入门"],
+    "cover_url": "https://xxx/cover.jpg",
+    "preview_urls": ["https://xxx/1.jpg"],
+    "bead_params": {
+      "board_size": "50x50",
+      "bead_count": 5000,
+      "difficulty": "simple"
+    },
+    "color_summary": {
+      "total_colors": 28
+    },
+    "source_type": "official",
+    "creator_name": "官方",
+    "view_count": 1000,
+    "like_count": 500,
+    "use_count": 200,
+    "is_favorite": false,
+    "create_time": "2026-01-01T00:00:00Z"
+  }
+}
+```
+
+### 6.3 模板搜索
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/template/search` |
+| 方法 | GET |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| keyword | string | 是 | 搜索关键词 |
+| page | int | 否 | 页码 |
+| page_size | int | 否 | 每页数量 |
+
+### 6.4 精选模板
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/template/featured` |
+| 方法 | GET |
+
+### 6.5 收藏模板
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/template/{id}/favorite` |
+| 方法 | POST |
+
+### 6.6 取消收藏
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/template/{id}/favorite` |
+| 方法 | DELETE |
+
+### 6.7 我的收藏模板
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/template/favorites` |
+| 方法 | GET |
+
+### 6.8 投稿模板
+
+| 项目 | 内容 |
+|------|------|
+| interface | `/template/submit` |
+| method | POST |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| name | string | 是 | 模板名称 |
+| category | string | 是 | 一级分类 |
+| tags | string[] | 是 | 标签 |
+| description | string | 是 | 描述 |
+| bead_params | object | 是 | 拼豆参数 |
+| diagram_url | string | 是 | 拼豆图URL |
+| cover_url | string | 是 | 封面图URL |
+
+**响应数据**:
+```json
+{
+  "code": 0,
+  "message": "投稿成功，请等待审核",
+  "data": {
+    "template_id": "tpl_xxx",
+    "status": "pending"
+  }
+}
+```
+
+---
+
+## 7. 论坛接口 (M3)
+
+### 7.1 信息流
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/feed/list` |
+| 方法 | GET |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| type | string | 是 | 类型: follow/recommend/topic |
+| page | int | 否 | 页码 |
+| page_size | int | 否 | 每页数量 |
+| topic_id | string | 否 | 话题ID (type=topic时必填) |
+
+### 7.2 创建帖子
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/create` |
+| 方法 | POST |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| type | string | 是 | 作品类型: work/request/tutorial/discussion |
+| title | string | 是 | 标题 |
+| content | string | 是 | 正文 |
+| media | object[] | 是 | 媒体 [{url, type}] |
+| topic_ids | string[] | 否 | 话题ID |
+| bead_params | object | 否 | 拼豆参数 |
+| diagram_id | string | 否 | 关联图纸ID |
+
+### 7.3 帖子详情
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/{id}` |
+| 方法 | GET |
+
+### 7.4 我的帖子列表
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/my` |
+| 方法 | GET |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | int | 否 | 页码 |
+| page_size | int | 否 | 每页数量 |
+| type | string | 否 | 类型筛选 |
+
+### 7.5 草稿箱
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/drafts` |
+| 方法 | GET |
+
+### 7.6 保存草稿
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/draft` |
+| 方法 | POST |
+
+### 7.7 删除帖子
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/{id}` |
+| 方法 | DELETE |
+
+### 7.8 点赞
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/{id}/like` |
+| 方法 | POST |
+
+### 7.9 取消点赞
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/{id}/like` |
+| 方法 | DELETE |
+
+### 7.10 收藏
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/{id}/favorite` |
+| 方法 | POST |
+
+### 7.11 取消收藏
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/{id}/favorite` |
+| 方法 | DELETE |
+
+### 7.12 我的收藏
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/favorites` |
+| 方法 | GET |
+
+### 7.13 评论列表
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/{id}/comments` |
+| 方法 | GET |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | int | 否 | 页码 |
+| page_size | int | 否 | 每页数量 |
+
+### 7.14 发表评论
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/post/{id}/comment` |
+| 方法 | POST |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| content | string | 是 | 评论内容，200字内 |
+| parent_id | string | 否 | 父评论ID (回复时) |
+| reply_to_user_id | string | 否 | 回复目标用户ID |
+
+### 7.15 删除评论
+
+| 项目 | 内容 |
+|------|------|
+| interface | `/comment/{id}` |
+| method | DELETE |
+
+### 7.16 评论点赞
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/comment/{id}/like` |
+| 方法 | POST |
+
+### 7.17 关注用户
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/user/{user_id}/follow` |
+| 方法 | POST |
+
+### 7.18 取消关注
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/user/{user_id}/follow` |
+| 方法 | DELETE |
+
+### 7.19 用户关系判断
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/user/{user_id}/relation` |
+| 方法 | GET |
+
+---
+
+## 8. 消息接口
+
+### 8.1 消息列表
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/message/list` |
+| 方法 | GET |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| type | string | 是 | 类型: comment/like/follow/at/system |
+| page | int | 否 | 页码 |
+| page_size | int | 否 | 每页数量 |
+
+### 8.2 未读消息数
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/message/unread` |
+| 方法 | GET |
+
+**响应数据**:
+```json
+{
+  "code": 0,
+  "data": {
+    "comment": 12,
+    "like": 234,
+    "follow": 5,
+    "at": 0,
+    "system": 3,
+    "total": 254
+  }
+}
+```
+
+### 8.3 标记已读
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/message/read` |
+| 方法 | POST |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| type | string | 是 | 类型 |
+
+### 8.4 消息设置
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/message/settings` |
+| 方法 | GET |
+
+### 8.5 更新消息设置
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/message/settings` |
+| 方法 | PUT |
+
+**请求参数**:
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| comment_enabled | boolean | 否 | 评论通知 |
+| like_enabled | boolean | 否 | 点赞通知 |
+| follow_enabled | boolean | 否 | 关注通知 |
+| at_enabled | boolean | 否 | @通知 |
+
+---
+
+## 9. 话题接口
+
+### 9.1 话题列表
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/topic/list` |
+| 方法 | GET |
+
+### 9.2 话题详情
+
+| 项目 | 内容 |
+|------|------|
+| 接口 | `/topic/{id}` |
+| 方法 | GET |
+
+---
+
+## 10. WebSocket接口
+
+### 10.1 连接
+
+```
+wss://api.pindou.com/ws?token={access_token}&device_id={device_id}
+```
+
+### 10.2 消息类型
+
+| 类型 | 说明 | 数据 |
+|------|------|------|
+| diagram_progress | 生成进度 | {task_id, progress, stage} |
+| diagram_complete | 生成完成 | {task_id, diagram_id} |
+| diagram_error | 生成失败 | {task_id, error} |
+| system_notification | 系统通知 | {title, content} |
+
+---
+
+## 11. 后台管理接口
+
+### 11.1 认证
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/v1/auth/login` | POST | 管理员登录 |
+| `/api/admin/v1/auth/logout` | POST | 登出 |
+| `/api/admin/v1/auth/info` | GET | 当前管理员信息 |
+
+### 11.2 用户管理
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/v1/user/list` | GET | 用户列表 |
+| `/api/admin/v1/user/{id}` | GET | 用户详情 |
+| `/api/admin/v1/user/{id}/status` | PUT | 禁用/启用用户 |
+| `/api/admin/v1/user/{id}/member` | PUT | 设置会员 |
+| `/api/admin/v1/user/{id}/delete` | DELETE | 删除用户 |
+
+### 11.3 帖子审核
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/v1/post/list` | GET | 帖子列表 |
+| `/api/admin/v1/post/{id}` | GET | 帖子详情 |
+| `/api/admin/v1/post/{id}/approve` | POST | 审核通过 |
+| `/api/admin/v1/post/{id}/reject` | POST | 审核拒绝 |
+| `/api/admin/v1/post/{id}/delete` | DELETE | 删除帖子 |
+
+### 11.4 评论审核
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/v1/comment/list` | GET | 评论列表 |
+| `/api/admin/v1/comment/{id}/delete` | DELETE | 删除评论 |
+
+### 11.5 敏感词管理
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/v1/sensitive/list` | GET | 敏感词列表 |
+| `/api/admin/v1/sensitive` | POST | 添加敏感词 |
+| `/api/admin/v1/sensitive/{id}` | PUT | 更新敏感词 |
+| `/api/admin/v1/sensitive/{id}` | DELETE | 删除敏感词 |
+
+### 11.6 举报管理
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/v1/report/list` | GET | 举报列表 |
+| `/api/admin/v1/report/{id}/handle` | POST | 处理举报 |
+
+### 11.7 模板管理
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/v1/template/list` | GET | 模板列表 |
+| `/api/admin/v1/template/{id}` | GET | 模板详情 |
+| `/api/admin/v1/template/{id}/approve` | POST | 审核通过 |
+| `/api/admin/v1/template/{id}/reject` | POST | 审核拒绝 |
+| `/api/admin/v1/template/{id}/delete` | DELETE | 删除模板 |
+| `/api/admin/v1/template/{id}/featured` | POST | 设置精选 |
+
+### 11.8 Banner管理
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/v1/banner/list` | GET | Banner列表 |
+| `/api/admin/v1/banner` | POST | 创建Banner |
+| `/api/admin/v1/banner/{id}` | PUT | 更新Banner |
+| `/api/admin/v1/banner/{id}` | DELETE | 删除Banner |
+
+### 11.9 话题管理
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/v1/topic/list` | GET | 话题列表 |
+| `/api/admin/v1/topic` | POST | 创建话题 |
+| `/api/admin/v1/topic/{id}` | PUT | 更新话题 |
+| `/api/admin/v1/topic/{id}` | DELETE | 删除话题 |
+
+### 11.10 数据统计
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/v1/stats/overview` | GET | 核心指标概览 |
+| `/api/admin/v1/stats/user` | GET | 用户统计 |
+| `/api/admin/v1/stats/diagram` | GET | 创作统计 |
+| `/api/admin/v1/stats/post` | GET | 社区统计 |
+
+### 11.11 系统配置
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/v1/config` | GET | 获取配置 |
+| `/api/admin/v1/config` | PUT | 更新配置 |
+
+---
+
+## 12. 附录
+
+### 12.1 错误码详细说明
+
+| 错误码 | 说明 | 解决方案 |
+|--------|------|----------|
+| 1001 | 参数错误 | 检查请求参数格式 |
+| 1002 | 缺少必填参数 | 补充必填参数 |
+| 2001 | Token无效 | 重新登录 |
+| 2002 | Token已过期 | 刷新Token |
+| 2003 | 刷新Token失败 | 重新登录 |
+| 3001 | 权限不足 | 检查用户权限 |
+| 4001 | 资源不存在 | 检查资源ID |
+| 5001 | 服务器内部错误 | 联系管理员 |
+
+### 12.2 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v1.0 | 2026-06-07 | 初版，基于移动端需求和总体架构 |
+
+---
+
+*接口需求规格说明书结束*

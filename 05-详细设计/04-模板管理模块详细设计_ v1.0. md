@@ -1,0 +1,690 @@
+# 模板管理模块详细设计
+> **模块**: 后台管理系统 - 模板管理
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 模块概述
+
+### 1.1 功能定位
+
+模板管理模块用于管理经典拼图模板，支持模板审核、分类管理、标签管理，维护模板库内容质量。
+
+### 1.2 功能清单
+
+| 功能 | 说明 | 优先级 |
+|------|------|--------|
+| 模板列表 | 查看模板列表，支持筛选 | P0 |
+| 模板详情 | 查看模板详情信息 | P0 |
+| 模板审核 | 审核用户投稿，通过/拒绝 | P0 |
+| 分类管理 | 模板分类增删改查 | P1 |
+| 标签管理 | 模板标签增删改查 | P1 |
+| 模板新增 | 后台手动新增模板 | P2 |
+
+---
+
+## 2. 技术架构
+
+### 2.1 技术选型
+
+| 技术 | 说明 |
+|------|------|
+| ORM | SqlSugar |
+| 缓存 | Redis (模板缓存) |
+| 文件存储 | 本地存储/OSS (模板图片) |
+| 图片处理 | ImageSharp |
+
+### 2.2 项目结构
+
+```
+Pindou.Admin/
+├── Controllers/
+│   ├── TemplateController. cs      # 模板管理控制器
+│   ├── TemplateCategoryController.cs# 分类管理控制器
+│   └── TemplateTagController. cs   # 标签管理控制器
+├── Services/
+│   ├── ITemplateService. cs        # 模板服务接口
+│   ├── TemplateService. cs         # 模板服务实现
+│   ├── ICategoryService. cs        # 分类服务接口
+│   ├── CategoryService. cs         # 分类服务实现
+│   ├── ITagService. cs             # 标签服务接口
+│   └── TagService. cs              # 标签服务实现
+├── Models/
+│   ├── DTOs/
+│   │   ├── TemplateListDTO. cs     # 模板列表DTO
+│   │   ├── TemplateDetailDTO. cs   # 模板详情DTO
+│   │   └── TemplateReviewDTO. cs   # 模板审核DTO
+│   └── Entities/
+│       ├── Template. cs            # 模板实体(引用业务库)
+│       ├── TemplateCategory. cs    # 分类实体
+│       ├── TemplateTag. cs         # 标签实体
+│       └── TemplateSubmission. cs  # 投稿实体
+└── Common/
+    ├── ImageHelper. cs             # 图片处理帮助类
+    └── TemplateMatcher. cs         # 模板匹配帮助类
+```
+
+### 2.3 核心服务设计
+
+#### 2.3.1 模板服务 (TemplateService)
+
+```csharp
+public interface ITemplateService
+{
+    /// <summary>获取模板列表</summary>
+    Task<PagedList<TemplateListResponse>> GetListAsync(TemplateListRequest request);
+
+    /// <summary>获取待审核列表</summary>
+    Task<PagedList<TemplateReviewResponse>> GetReviewListAsync(TemplateReviewRequest request);
+
+    /// <summary>获取模板详情</summary>
+    Task<TemplateDetailResponse> GetDetailAsync(long id);
+
+    /// <summary>审核通过</summary>
+    Task<Result> ApproveAsync(long templateId, string remark);
+
+    /// <summary>审核拒绝</summary>
+    Task<Result> RejectAsync(TemplateRejectRequest request);
+
+    /// <summary>上架模板</summary>
+    Task<Result> OnlineAsync(long id);
+
+    /// <summary>下架模板</summary>
+    Task<Result> OfflineAsync(long id);
+
+    /// <summary>设为精选</summary>
+    Task<Result> SetFeaturedAsync(long id);
+
+    /// <summary>取消精选</summary>
+    Task<Result> UnsetFeaturedAsync(long id);
+
+    /// <summary>手动新增模板</summary>
+    Task<Template> AddAsync(TemplateAddRequest request);
+}
+```
+
+---
+
+## 3. 数据库设计
+
+### 3.1 表结构
+
+#### 3.1.1 模板分类表 (template_category)
+
+```csharp
+[ SugarTable("template_category") ]
+public class TemplateCategory
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 50, IsNullable = false)]
+    public string Name { get; set; }
+
+    [SugarColumn(Length = 50, IsNullable = false, UniqueIndex = "idx_code")]
+    public string Code { get; set; }
+
+    [SugarColumn(Length = 100)]
+    public string Icon { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int Sort { get; set; }
+
+    [SugarColumn(DefaultValue = "1")]
+    public int Status { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+
+    public DateTime? UpdateTime { get; set; }
+}
+```
+
+#### 3.1.2 模板标签表 (template_tag)
+
+```csharp
+[ SugarTable("template_tag") ]
+public class TemplateTag
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 50, IsNullable = false)]
+    public string Name { get; set; }
+
+    [SugarColumn(Length = 20)]
+    public string Category { get; set; }
+
+    [SugarColumn(Length = 20)]
+    public string Type { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int UseCount { get; set; }
+
+    [SugarColumn(DefaultValue = "1")]
+    public int Status { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+
+    public DateTime? UpdateTime { get; set; }
+}
+```
+
+#### 3.1.3 模板审核记录表 (template_review_log)
+
+```csharp
+[ SugarTable("template_review_log") ]
+public class TemplateReviewLog
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public long TemplateId { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public long ReviewerId { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false)]
+    public string Action { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string Reason { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string Remark { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+}
+```
+
+### 3.2 初始分类数据
+
+```csharp
+var categories = new List<TemplateCategory>
+{
+    new TemplateCategory { Id = 1, Name = "节日", Code = "festival", Sort = 1, Status = 1 },
+    new TemplateCategory { Id = 2, Name = "卡通", Code = "cartoon", Sort = 2, Status = 1 },
+    new TemplateCategory { Id = 3, Name = "二次元", Code = "anime", Sort = 3, Status = 1 },
+    new TemplateCategory { Id = 4, Name = "宠物", Code = "pet", Sort = 4, Status = 1 },
+    new TemplateCategory { Id = 5, Name = "风景", Code = "scenery", Sort = 5, Status = 1 },
+    new TemplateCategory { Id = 6, Name = "像素游戏", Code = "pixel_game", Sort = 6, Status = 1 },
+    new TemplateCategory { Id = 7, Name = "国风", Code = "chinese", Sort = 7, Status = 1 },
+    new TemplateCategory { Id = 8, Name = "表情包", Code = "emoji", Sort = 8, Status = 1 },
+    new TemplateCategory { Id = 9, Name = "文字", Code = "text", Sort = 9, Status = 1 },
+    new TemplateCategory { Id = 10, Name = "其他", Code = "other", Sort = 10, Status = 1 }
+};
+```
+
+---
+
+## 4. 接口设计
+
+### 4.1 模板管理接口
+
+#### 4.1.1 模板列表
+
+```
+GET /api/admin/v1/template/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码，默认为1
+- size: 每页条数，默认为20
+- status: 状态(可选): draft/pending/approved/rejected/offline
+- category: 分类编码(可选)
+- source_type: 来源(可选): official/creator
+- difficulty: 难度(可选): easy/normal/hard
+- is_featured: 是否精选(可选): 0/1
+- keyword: 关键词(可选)
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "template_id": "t_001",
+                "name": "圣诞老人",
+                "description": "给孩子的圣诞礼物",
+                "category": "festival",
+                "category_name": "节日",
+                "tags": ["圣诞", "亲子"],
+                "cover_url": "https://...",
+                "source_type": "official",
+                "bead_params": {
+                    "board_size": "50x50",
+                    "color_count": 28,
+                    "bead_count": 5000,
+                    "difficulty": "easy"
+                },
+                "view_count": 1234,
+                "like_count": 567,
+                "use_count": 890,
+                "is_featured": 1,
+                "status": "approved",
+                "create_time": "2026-06-01 10:00:00"
+            }
+        ],
+        "total": 234,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.1.2 待审核列表
+
+```
+GET /api/admin/v1/template/review/pending
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码
+- size: 每页条数
+- category: 分类
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "template_id": "t_001",
+                "name": "皮卡丘",
+                "category": "cartoon",
+                "category_name": "卡通",
+                "tags": ["精灵球", "可爱"],
+                "cover_url": "https://...",
+                "creator_name": "达人小王",
+                "source_type": "creator",
+                "bead_params": {
+                    "color_count": 35,
+                    "difficulty": "normal"
+                },
+                "create_time": "2026-06-07 10:00:00"
+            }
+        ],
+        "total": 23,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.1.3 模板详情
+
+```
+GET /api/admin/v1/template/{id}
+Authorization: Bearer {token}
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "id": 1,
+        "template_id": "t_001",
+        "name": "圣诞老人",
+        "description": "给孩子的圣诞礼物",
+        "category": "festival",
+        "category_name": "节日",
+        "tags": ["圣诞", "亲子", "简单"],
+        "cover_url": "https://...",
+        "preview_urls": ["https://...", "https://..."],
+        "bead_params": {
+            "board_size": "50x50",
+            "color_count": 28,
+            "bead_count": 5000,
+            "difficulty": "easy",
+            "style": "realistic"
+        },
+        "color_summary": {
+            "total_colors": 28,
+            "total_beads": 5000,
+            "color_list": [
+                {"color_no": "1", "color_name": "红色", "rgb": "#FF0000"},
+                ...
+            ]
+        },
+        "source_type": "official",
+        "creator_id": 1,
+        "creator_name": "系统管理员",
+        "view_count": 1234,
+        "like_count": 567,
+        "use_count": 890,
+        "is_featured": 1,
+        "is_official": 1,
+        "status": "approved",
+        "create_time": "2026-06-01 10:00:00"
+    }
+}
+```
+
+#### 4.1.4 审核通过
+
+```
+POST /api/admin/v1/template/review/approve
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "template_id": 1,
+    "remark": "模板质量合格，审核通过"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "审核通过"
+}
+```
+
+#### 4.1.5 审核拒绝
+
+```
+POST /api/admin/v1/template/review/reject
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "template_id": 1,
+    "reason": "版权问题",
+    "reason_text": "包含未授权的精灵宝可梦形象",
+    "remark": "请提交原创或已授权的作品"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "已拒绝"
+}
+```
+
+### 4.2 分类管理接口
+
+#### 4.2.1 分类列表
+
+```
+GET /api/admin/v1/template/category/list
+Authorization: Bearer {token}
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "name": "节日",
+                "code": "festival",
+                "icon": "https://...",
+                "sort": 1,
+                "status": 1,
+                "template_count": 30
+            }
+        ]
+    }
+}
+```
+
+#### 4.2.2 新增分类
+
+```
+POST /api/admin/v1/template/category
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "name": "节日",
+    "code": "festival",
+    "icon": "https://...",
+    "sort": 1
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success"
+}
+```
+
+### 4.3 标签管理接口
+
+#### 4.3.1 标签列表
+
+```
+GET /api/admin/v1/template/tag/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码
+- size: 每页条数
+- category: 所属分类
+- type: 标签类型
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "name": "圣诞",
+                "category": "festival",
+                "type": "theme",
+                "use_count": 50,
+                "status": 1
+            }
+        ],
+        "total": 100,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+---
+
+## 5. 核心流程设计
+
+### 5.1 模板审核流程
+
+```
+1. 用户投稿
+   └─> 用户在APP提交模板
+   └─> 生成投稿记录，状态为pending
+
+2. 管理员审核
+   ├─> 查看投稿详情
+   ├─> 检查: 版权/质量/合规/完整性
+   ├─> 通过: 状态改为approved，通知用户
+   └─> 拒绝: 状态改为rejected，通知用户
+
+3. 模板上架
+   ├─> 审核通过后状态为approved
+   └─> 手动/自动上架变为online
+```
+
+### 5.2 模板新增流程
+
+```
+1. 管理员手动新增
+   ├─> 填写模板信息
+   ├─> 上传封面图和预览图
+   ├─> 填写拼豆参数
+   └─> 选择分类和标签
+
+2. 模板验证
+   ├─> 检查必填字段
+   ├─> 检查图片格式和大小
+   └─> 检查色号参数
+
+3. 保存模板
+   ├─> 生成模板ID
+   ├─> 上传图片到存储
+   ├─> 保存到数据库
+   └─> 状态为approved，自动上架
+```
+
+### 5.3 图片处理流程
+
+```csharp
+public class ImageHelper
+{
+    /// <summary>处理模板图片</summary>
+    public async Task<ImageProcessResult> ProcessTemplateImagesAsync(IFormFile file)
+    {
+        // 1. 验证图片格式
+        var allowedFormats = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        var extension = Path.GetExtension(file.FileName).ToLower();
+        if (!allowedFormats.Contains(extension))
+            throw new Exception("不支持的图片格式");
+
+        // 2. 验证图片大小 (最大10MB)
+        if (file.Length > 10 * 1024 * 1024)
+            throw new Exception("图片大小不能超过10MB");
+
+        // 3. 生成缩略图
+        var thumbnailPath = await GenerateThumbnailAsync(file);
+
+        // 4. 生成水印(官方模板)
+        var watermarkedPath = await AddWatermarkAsync(file);
+
+        return new ImageProcessResult
+        {
+            OriginalUrl = await UploadAsync(file),
+            ThumbnailUrl = thumbnailPath,
+            WatermarkedUrl = watermarkedPath
+        };
+    }
+
+    /// <summary>生成缩略图</summary>
+    public async Task<string> GenerateThumbnailAsync(IFormFile file)
+    {
+        // 使用ImageSharp处理
+        using var image = await Image.LoadAsync(file.OpenReadStream());
+        image.Mutate(x => x.Resize(200, 200));
+        // 保存到存储，返回URL
+    }
+}
+```
+
+---
+
+## 6. 审核规则
+
+### 6.1 审核维度
+
+| 维度 | 检查项 | 处理方式 |
+|------|--------|----------|
+| 版权 | 原创/已授权/无侵权 | 需授权证明 |
+| 质量 | 拼豆图清晰、色号准确 | 需达标 |
+| 合规 | 无违规内容 | 需合规 |
+| 完整性 | 信息齐全 | 需完整 |
+| 难度匹配 | 标注与实际一致 | 需一致 |
+
+### 6.2 模板状态
+
+| 状态 | 说明 |
+|------|------|
+| draft | 草稿 |
+| pending | 待审核 |
+| approved | 已通过 |
+| rejected | 已拒绝 |
+| offline | 已下架 |
+
+### 6.3 分类编码
+
+| 编码 | 名称 | 目标数量 |
+|------|------|----------|
+| festival | 节日 | 30 |
+| cartoon | 卡通 | 30 |
+| anime | 二次元 | 20 |
+| pet | 宠物 | 20 |
+| scenery | 风景 | 20 |
+| pixel_game | 像素游戏 | 15 |
+| chinese | 国风 | 20 |
+| emoji | 表情包 | 15 |
+| text | 文字 | 10 |
+| other | 其他 | 20 |
+
+---
+
+## 7. 异常处理
+
+| 场景 | 处理 |
+|------|------|
+| 模板不存在 | 返回404 |
+| 模板已审核 | 返回"模板已审核，重复操作" |
+| 审核失败 | 返回具体错误原因，记录日志 |
+| 分类已存在 | 返回"分类编码已存在" |
+| 图片处理失败 | 返回"图片处理失败，请重试" |
+
+---
+
+## 8. 前端设计
+
+### 8.1 页面路由
+
+| 页面 | 路由 | 权限 |
+|------|------|------|
+| 模板列表 | /template/list | template:view |
+| 待审核列表 | /template/review | template:review |
+| 模板详情 | /template/detail/:id | template:view |
+| 分类管理 | /template/category | template:view |
+| 标签管理 | /template/tag | template:view |
+
+### 8.2 Vue组件结构
+
+```
+views/
+└── template/
+    ├── TemplateList. vue      # 模板列表
+    ├── TemplateReview. vue    # 待审核列表
+    ├── TemplateDetail. vue    # 模板详情
+    ├── TemplateAdd. vue       # 新增模板
+    ├── CategoryList. vue      # 分类列表
+    └── TagList. vue           # 标签列表
+```
+
+---
+
+## 9. 验收标准
+
+### 9.1 功能验收
+
+- [ ] 模板列表展示正常
+- [ ] 筛选/搜索功能正常
+- [ ] 模板详情展示完整
+- [ ] 审核通过功能正常
+- [ ] 审核拒绝功能正常
+- [ ] 分类增删改查正常
+- [ ] 标签增删改查正常
+- [ ] 模板上下架功能正常
+
+### 9.2 内容验收
+
+- [ ] 模板分类覆盖10个一级分类
+- [ ] 每个分类至少10个模板
+- [ ] 官方模板有IP授权
+
+---
+
+## 10. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v1.0 | 2026-06-07 | 初稿，基于概要设计 |
+
+---
+
+*模板管理模块详细设计结束*

@@ -1,0 +1,605 @@
+# 数据统计模块详细设计
+> **模块**: 后台管理系统 - 数据统计
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 模块概述
+
+### 1.1 功能定位
+
+数据统计模块用于展示系统核心运营数据，提供用户分析、创作分析、社区分析等统计功能，支撑运营决策。
+
+### 1.2 功能清单
+
+| 功能 | 说明 | 优先级 |
+|------|------|--------|
+| 核心指标看板 | DAU/新增/生成次数等核心指标 | P0 |
+| 用户分析 | 用户增长/画像/登录方式 | P1 |
+| 创作分析 | 生成量/参数分布/导出率 | P1 |
+| 社区分析 | 帖子/互动/话题热度 | P1 |
+
+---
+
+## 2. 技术架构
+
+### 2.1 技术选型
+
+| 技术 | 说明 |
+|------|------|
+| ORM | SqlSugar |
+| 缓存 | Redis (热点统计数据缓存) |
+| 数据聚合 | 定时任务聚合日统计数据 |
+| 图表 | ECharts |
+| 导出 | EPPlus (Excel导出) |
+
+### 2.2 项目结构
+
+```
+Pindou.Admin/
+├── Controllers/
+│   └── StatsController. cs       # 数据统计控制器
+├── Services/
+│   ├── IStatsService. cs         # 统计服务接口
+│   └── StatsService. cs          # 统计服务实现
+├── Models/
+│   ├── DTOs/
+│   │   ├── StatsOverviewDTO. cs  # 核心指标DTO
+│   │   ├── StatsUserDTO. cs      # 用户统计DTO
+│   │   ├── StatsCreationDTO. cs # 创作统计DTO
+│   │   └── StatsCommunityDTO. cs# 社区统计DTO
+│   └── Entities/
+│       └── DailyStats. cs        # 日统计数据实体
+└── Jobs/
+    └── StatsAggregationJob. cs  # 统计聚合任务
+```
+
+### 2.3 核心服务设计
+
+#### 2.3.1 统计服务 (StatsService)
+
+```csharp
+public interface IStatsService
+{
+    /// <summary>获取核心指标</summary>
+    Task<StatsOverviewResponse> GetOverviewAsync(DateType dateType, DateTime? startDate, DateTime? endDate);
+
+    /// <summary>获取用户统计</summary>
+    Task<StatsUserResponse> GetUserStatsAsync(DateType dateType, DateTime? startDate, DateTime? endDate);
+
+    /// <summary>获取创作统计</summary>
+    Task<StatsCreationResponse> GetCreationStatsAsync(DateType dateType, DateTime? startDate, DateTime? endDate);
+
+    /// <summary>获取社区统计</summary>
+    Task<StatsCommunityResponse> GetCommunityStatsAsync(DateType dateType, DateTime? startDate, DateTime? endDate);
+
+    /// <summary>获取趋势数据</summary>
+    Task<TrendResponse> GetTrendAsync(string metric, DateType dateType, int days);
+
+    /// <summary>导出统计报表</summary>
+    Task<byte[]> ExportAsync(StatsExportRequest request);
+}
+```
+
+---
+
+## 3. 数据库设计
+
+### 3.1 表结构
+
+#### 3.1.1 日统计数据表 (daily_stats)
+
+```csharp
+[ SugarTable("daily_stats") ]
+public class DailyStats
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(IsNullable = false, UniqueIndex = "uk_stat_date")]
+    public DateTime StatDate { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int Dau { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int NewUserCount { get; set; }
+
+    [SugarColumn(Length = 5, DecimalDigits = "2")]
+    public decimal? Retention1d { get; set; }
+
+    [SugarColumn(Length = 5, DecimalDigits = "2")]
+    public decimal? Retention7d { get; set; }
+
+    [SugarColumn(Length = 5, DecimalDigits = "2")]
+    public decimal? Retention30d { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int GenerationCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int AvgBeadCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int AvgColorCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int ExportCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int PostCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int WorkCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int TutorialCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int CommentCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int LikeCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int ShareCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int FavoriteCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int MemberOrderCount { get; set; }
+
+    [SugarColumn(Length = 10, DecimalDigits = "2", DefaultValue = "0")]
+    public decimal MemberRevenue { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+}
+```
+
+### 3.2 数据聚合流程
+
+```csharp
+public class StatsAggregationJob
+{
+    /// <summary>每日凌晨2点执行统计聚合</summary>
+    [Cron("0 2 * * *")]
+    public async Task AggregateDailyStatsAsync()
+    {
+        var yesterday = DateTime. yesterday. Date;
+
+        // 1. 统计用户数据
+        var userStats = await _statsRepository.GetUserStatsAsync(yesterday);
+
+        // 2. 统计创作数据
+        var creationStats = await _statsRepository.GetCreationStatsAsync(yesterday);
+
+        // 3. 统计社区数据
+        var communityStats = await _statsRepository.GetCommunityStatsAsync(yesterday);
+
+        // 4. 统计会员数据
+        var memberStats = await _statsRepository.GetMemberStatsAsync(yesterday);
+
+        // 5. 聚合并保存
+        var dailyStats = new DailyStats
+        {
+            StatDate = yesterday,
+            Dau = userStats.Dau,
+            NewUserCount = userStats.NewUserCount,
+            Retention1d = userStats.Retention1d,
+            Retention7d = userStats.Retention7d,
+            Retention30d = userStats.Retention30d,
+            GenerationCount = creationStats.GenerationCount,
+            AvgBeadCount = creationStats.AvgBeadCount,
+            AvgColorCount = creationStats.AvgColorCount,
+            ExportCount = creationStats.ExportCount,
+            PostCount = communityStats.PostCount,
+            WorkCount = communityStats.WorkCount,
+            TutorialCount = communityStats.TutorialCount,
+            CommentCount = communityStats.CommentCount,
+            LikeCount = communityStats.LikeCount,
+            ShareCount = communityStats.ShareCount,
+            FavoriteCount = communityStats.FavoriteCount,
+            MemberOrderCount = memberStats.OrderCount,
+            MemberRevenue = memberStats.Revenue,
+            CreateTime = DateTime.Now
+        };
+
+        await _repository.InsertOrUpdateAsync(dailyStats);
+    }
+
+    /// <summary>计算留存率</summary>
+    public async Task CalculateRetentionAsync(DateTime date, int days)
+    {
+        var targetDate = date.AddDays(-days);
+        var startDate = targetDate. Date;
+        var endDate = startDate. AddDays(1);
+
+        // 获取目标日期新增用户
+        var newUsers = await _userRepository.GetNewUsersAsync(startDate, endDate);
+        var newUserIds = newUsers.Select(u => u.Id).ToList();
+
+        if (newUserIds.Count == 0) return;
+
+        // 计算第days天活跃的用户数
+        var activeUserCount = await _userRepository.GetActiveUserCountAsync(date.Date, date.Date.AddDays(1), newUserIds);
+
+        var retentionRate = (decimal)activeUserCount / newUserIds.Count * 100;
+
+        // 更新统计数据
+        await _statsRepository.UpdateRetentionAsync(date, days, retentionRate);
+    }
+}
+```
+
+---
+
+## 4. 接口设计
+
+### 4.1 核心指标接口
+
+```
+GET /api/admin/v1/stats/overview
+Authorization: Bearer {token}
+
+Query Parameters:
+- date_type: today/yesterday/week/month (默认today)
+- start_date: 自定义开始日期(可选)
+- end_date: 自定义结束日期(可选)
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "dau": 12567,
+        "dau_change": 5.6,
+        "new_user_count": 1234,
+        "new_user_change": 12.3,
+        "retention_1d": 38.5,
+        "retention_1d_change": -1.2,
+        "generation_count": 5678,
+        "generation_change": 8.9,
+        "post_count": 1234,
+        "post_change": 15.6,
+        "interaction_count": 23456,
+        "interaction_change": 10.2,
+        "member_revenue": 12567.00,
+        "revenue_change": 25.3,
+        "date": "2026-06-07"
+    }
+}
+```
+
+### 4.2 用户统计接口
+
+```
+GET /api/admin/v1/stats/user
+Authorization: Bearer {token}
+
+Query Parameters:
+- date_type: today/yesterday/week/month
+- start_date: 开始日期
+- end_date: 结束日期
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "total_user": 50000,
+        "active_user": 12567,
+        "new_user": 1234,
+        "growth_trend": [
+            {"date": "2026-06-01", "new_user": 100, "total": 48000},
+            {"date": "2026-06-02", "new_user": 120, "total": 48120}
+        ],
+        "register_method": [
+            {"method": "wechat", "count": 3000, "percentage": 60},
+            {"method": "phone", "count": 1500, "percentage": 30},
+            {"method": "apple", "count": 300, "percentage": 6},
+            {"method": "guest", "count": 200, "percentage": 4}
+        ],
+        "retention": {
+            "1d": 38.5,
+            "7d": 25.3,
+            "30d": 15.2
+        }
+    }
+}
+```
+
+### 4.3 创作统计接口
+
+```
+GET /api/admin/v1/stats/creation
+Authorization: Bearer {token}
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "total_generation": 100000,
+        "today_generation": 5678,
+        "avg_daily_generation": 5000,
+        "bead_distribution": [
+            {"range": "0-1000", "count": 3000, "percentage": 30},
+            {"range": "1000-3000", "count": 4000, "percentage": 40},
+            {"range": "3000-5000", "count": 2000, "percentage": 20},
+            {"range": "5000+", "count": 1000, "percentage": 10}
+        ],
+        "color_distribution": [
+            {"range": "0-20", "count": 2000, "percentage": 20},
+            {"range": "20-40", "count": 5000, "percentage": 50},
+            {"range": "40+", "count": 3000, "percentage": 30}
+        ],
+        "export_rate": 85.5,
+        "export_trend": [
+            {"date": "2026-06-01", "export_rate": 80},
+            {"date": "2026-06-02", "export_rate": 82}
+        ],
+        "popular_boards": [
+            {"size": "30x30", "count": 2000},
+            {"size": "50x50", "count": 3500},
+            {"size": "60x60", "count": 1500}
+        ]
+    }
+}
+```
+
+### 4.4 社区统计接口
+
+```
+GET /api/admin/v1/stats/community
+Authorization: Bearer {token}
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "total_posts": 50000,
+        "today_posts": 1234,
+        "post_type_distribution": [
+            {"type": "work", "count": 35000, "percentage": 70},
+            {"type": "tutorial", "count": 10000, "percentage": 20},
+            {"type": "question", "count": 5000, "percentage": 10}
+        ],
+        "interaction": {
+            "comment_count": 150000,
+            "like_count": 500000,
+            "share_count": 30000,
+            "favorite_count": 80000
+        },
+        "active_topics": [
+            {"name": "#生日礼物#", "post_count": 1234, "increase": 50},
+            {"name": "#拼豆教程#", "post_count": 567, "increase": 20}
+        ],
+        "content_quality": {
+            "approved_rate": 98.5,
+            "rejected_rate": 1.5,
+            "avg_review_time": 60
+        }
+    }
+}
+```
+
+### 4.5 趋势数据接口
+
+```
+GET /api/admin/v1/stats/trend
+Authorization: Bearer {token}
+
+Query Parameters:
+- metric: dau/new_user/generation/post/comment/like/member_revenue
+- date_type: today/yesterday/week/month
+- days: 天数(默认7)
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "metric": "dau",
+        "trend": [
+            {"date": "2026-06-01", "value": 10000},
+            {"date": "2026-06-02", "value": 10500},
+            {"date": "2026-06-03", "value": 11000},
+            {"date": "2026-06-04", "value": 10800},
+            {"date": "2026-06-05", "value": 11200},
+            {"date": "2026-06-06", "value": 11800},
+            {"date": "2026-06-07", "value": 12567}
+        ],
+        "compare": {
+            "prev_period": 11000,
+            "current_period": 12567,
+            "change_rate": 14.2
+        }
+    }
+}
+```
+
+### 4.6 导出接口
+
+```
+GET /api/admin/ v1/stats/export
+Authorization: Bearer {token}
+
+Query Parameters:
+- date_type: today/yesterday/week/month
+- start_date: 开始日期
+- end_date: 结束日期
+- metrics: dau,new_user,generation,post,comment,like,revenue
+
+Response:
+返回Excel文件 (application/vnd.openxmlformats-officedocument.spreadsheetml.sheet)
+```
+
+---
+
+## 5. 核心流程设计
+
+### 5.1 数据查询流程
+
+```csharp
+public async Task<StatsOverviewResponse> GetOverviewAsync(DateType dateType)
+{
+    // 1. 确定日期范围
+    var (startDate, endDate) = GetDateRange(dateType);
+
+    // 2. 缓存检查
+    var cacheKey = $"stats:overview:{dateType}:{startDate:yyyyMMdd}";
+    var cached = await _redis. GetAsync<StatsOverviewResponse>(cacheKey);
+    if (cached != null) return cached;
+
+    // 3. 查询统计表
+    var stats = await _statsRepository.GetStatsAsync(startDate, endDate);
+
+    // 4. 计算同比/环比
+    var prevStartDate = startDate.AddDays(-GetDays(dateType));
+    var prevStats = await _statsRepository.GetStatsAsync(prevStartDate, startDate);
+
+    // 5. 聚合响应
+    var response = new StatsOverviewResponse
+    {
+        Dau = stats.Sum(s => s.Dau),
+        DauChange = CalculateChange(stats. Sum(s => s.Dau), prevStats.Sum(s => s.Dau)),
+        // ... 其他字段
+        Date = endDate.ToString("yyyy-MM-dd")
+    };
+
+    // 6. 缓存5分钟
+    await _redis.SetAsync(cacheKey, response, TimeSpan.FromMinutes(5));
+
+    return response;
+}
+```
+
+### 5.2 同比/环比计算
+
+```csharp
+public static decimal CalculateChange(decimal current, decimal previous)
+{
+    if (previous == 0) return current > 0 ? 100 : 0;
+    return Math.Round((current - previous) / previous * 100, 1);
+}
+```
+
+---
+
+## 6. 业务规则
+
+### 6.1 日期类型
+
+| 类型 | 含义 | 实际范围 |
+|------|------|----------|
+| today | 今日 | 当日00:00 - 当前时间 |
+| yesterday | 昨日 | 前日00:00 - 前日23:59:59 |
+| week | 本周 | 本周一00:00 - 当前时间 |
+| month | 本月 | 本月1日00:00 - 当前时间 |
+
+### 6.2 数据更新
+
+- **实时数据**: DAU、新增用户等实时计算
+- **定时聚合**: 每日凌晨2点聚合昨日完整数据
+- **缓存策略**: 5分钟缓存，过期重新计算
+
+### 6.3 统计口径
+
+| 指标 | 口径 |
+|------|------|
+| DAU | 当日有登录行为的用户数 |
+| 新增用户 | 当日首次注册的用户数 |
+| 次日留存 | 当日新增用户在次日活跃的比例 |
+| 互动量 | 点赞+评论+收藏+分享总数 |
+
+---
+
+## 7. 异常处理
+
+| 场景 | 处理 |
+|------|------|
+| 无统计数据 | 返回空数据，"暂无统计数据" |
+| 日期范围错误 | 返回"开始日期不能大于结束日期" |
+| 导出失败 | 返回"导出失败，请重试" |
+| 计算异常 | 返回0，标记数据异常 |
+
+---
+
+## 8. 前端设计
+
+### 8.1 页面路由
+
+| 页面 | 路由 | 权限 |
+|------|------|------|
+| 核心指标 | /stats/overview | stats:view |
+| 用户分析 | /stats/user | stats:view |
+| 创作分析 | /stats/creation | stats:view |
+| 社区分析 | /stats/community | stats:view |
+
+### 8.2 Vue组件结构
+
+```
+views/
+└── stats/
+    ├── StatsOverview. vue      # 核心指标
+    ├── StatsUser. vue          # 用户分析
+    ├── StatsCreation. vue      # 创作分析
+    └── StatsCommunity. vue     # 社区分析
+```
+
+### 8.3 前端图表配置
+
+```javascript
+// ECharts折线图配置
+const lineOption = {
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['DAU', '新增用户'] },
+    xAxis: { type: 'category', data: dates },
+    yAxis: { type: 'value' },
+    series: [
+        { name: 'DAU', type: 'line', data: dauValues, smooth: true },
+        { name: '新增用户', type: 'line', data: newUserValues, smooth: true }
+    ]
+};
+
+// ECharts饼图配置
+const pieOption = {
+    tooltip: { trigger: 'item' },
+    series: [{
+        type: 'pie',
+        radius: '60%',
+        data: [
+            { value: 3000, name: '微信' },
+            { value: 1500, name: '手机号' }
+        ]
+    }]
+};
+```
+
+---
+
+## 9. 验收标准
+
+### 9.1 功能验收
+
+- [ ] 核心指标展示正常
+- [ ] 趋势图展示正常
+- [ ] 日期筛选正常
+- [ ] 数据导出正常
+
+### 9.2 数据验收
+
+- [ ] 统计数据计算正确
+- [ ] 同比/环比计算正确
+
+---
+
+## 10. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v1.0 | 2026-06-07 | 初稿，基于概要设计 |
+
+---
+
+*数据统计模块详细设计结束*

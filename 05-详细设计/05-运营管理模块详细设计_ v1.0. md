@@ -1,0 +1,752 @@
+# 运营管理模块详细设计
+> **模块**: 后台管理系统 - 运营管理
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 模块概述
+
+### 1.1 功能定位
+
+运营管理模块用于配置APP运营内容，包括Banner管理、话题管理、专题管理、消息推送等。
+
+### 1.2 功能清单
+
+| 功能 | 说明 | 优先级 |
+|------|------|--------|
+| Banner管理 | 首页Banner配置 | P0 |
+| 话题管理 | 话题创建/编辑/关闭 | P1 |
+| 专题管理 | 节日/活动专题配置 | P1 |
+| 推送管理 | 系统消息推送 | P1 |
+
+---
+
+## 2. 技术架构
+
+### 2.1 技术选型
+
+| 技术 | 说明 |
+|------|------|
+| ORM | SqlSugar |
+| 缓存 | Redis (Banner缓存) |
+| 文件存储 | 本地存储/OSS |
+| 消息推送 | 极光推送 / 华为推送 / 苹果APNs |
+| 定时任务 | Hangfire (定时推送) |
+
+### 2.2 项目结构
+
+```
+Pindou.Admin/
+├── Controllers/
+│   ├── BannerController. cs      # Banner管理控制器
+│   ├── TopicController. cs       # 话题管理控制器
+│   ├── SpecialTopicController. cs# 专题管理控制器
+│   └── PushController. cs        # 推送管理控制器
+├── Services/
+│   ├── IBannerService. cs        # Banner服务接口
+│   ├── BannerService. cs         # Banner服务实现
+│   ├── ITopicService. cs         # 话题服务接口
+│   ├── TopicService. cs          # 话题服务实现
+│   ├── ISpecialTopicService. cs  # 专题服务接口
+│   ├── SpecialTopicService. cs   # 专题服务实现
+│   ├── IPushService. cs          # 推送服务接口
+│   └── PushService. cs           # 推送服务实现
+├── Models/
+│   ├── DTOs/
+│   │   ├── BannerDTO. cs         # Banner DTO
+│   │   ├── TopicDTO. cs          # 话题 DTO
+│   │   ├── PushDTO. cs           # 推送 DTO
+│   └── Entities/
+│       ├── Banner. cs            # Banner实体
+│       ├── Topic. cs             # 话题实体
+│       ├── SpecialTopic. cs      # 专题实体
+│       └── PushRecord. cs        # 推送记录实体
+└── Jobs/
+    └── PushJob. cs               # 推送定时任务
+```
+
+### 2.3 核心服务设计
+
+#### 2.3.1 推送服务 (PushService)
+
+```csharp
+public interface IPushService
+{
+    /// <summary>获取推送列表</summary>
+    Task<PagedList<PushRecord>> GetListAsync(PushListRequest request);
+
+    /// <summary>获取推送详情</summary>
+    Task<PushDetailResponse> GetDetailAsync(long id);
+
+    /// <summary>发送推送</summary>
+    Task<PushResult> SendAsync(PushRequest request);
+
+    /// <summary>定时推送</summary>
+    Task<PushResult> ScheduleAsync(SchedulePushRequest request);
+
+    /// <summary>取消定时推送</summary>
+    Task<Result> CancelScheduleAsync(long id);
+
+    /// <summary>处理推送回调</summary>
+    Task HandleCallbackAsync(PushCallback callback);
+}
+```
+
+---
+
+## 3. 数据库设计
+
+### 3.1 表结构
+
+#### 3.1.1 Banner表 (banner)
+
+```csharp
+[ SugarTable("banner") ]
+public class Banner
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 100, IsNullable = false)]
+    public string Title { get; set; }
+
+    [SugarColumn(Length = 500, IsNullable = false)]
+    public string ImageUrl { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false)]
+    public string LinkType { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string LinkUrl { get; set; }
+
+    [SugarColumn(Length = 200)]
+    public string LinkParam { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false)]
+    public string Position { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int Sort { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime StartTime { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime EndTime { get; set; }
+
+    [SugarColumn(DefaultValue = "1")]
+    public int Status { get; set; }
+
+    public long? CreateBy { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+
+    public DateTime? UpdateTime { get; set; }
+}
+```
+
+#### 3.1.2 话题表 (topic)
+
+```csharp
+[ SugarTable("topic") ]
+public class Topic
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false, UniqueIndex = "idx_topic_id")]
+    public string TopicId { get; set; }
+
+    [SugarColumn(Length = 100, IsNullable = false)]
+    public string Name { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string Description { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string CoverUrl { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int IsOfficial { get; set; }
+
+    [SugarColumn(Length = 20, DefaultValue = "active")]
+    public string Status { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int PostCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int ParticipantCount { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+
+    public DateTime? UpdateTime { get; set; }
+}
+```
+
+#### 3.1.3 专题表 (special_topic)
+
+```csharp
+[ SugarTable("special_topic") ]
+public class SpecialTopic
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 100, IsNullable = false)]
+    public string Name { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string Description { get; set; }
+
+    [SugarColumn(Length = 500, IsNullable = false)]
+    public string CoverUrl { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string TemplateIds { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime StartTime { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime EndTime { get; set; }
+
+    [SugarColumn(DefaultValue = "1")]
+    public int Status { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+
+    public DateTime? UpdateTime { get; set; }
+}
+```
+
+#### 3.1.4 推送记录表 (push_record)
+
+```csharp
+[ SugarTable("push_record") ]
+public class PushRecord
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false, UniqueIndex = "idx_push_id")]
+    public string PushId { get; set; }
+
+    [SugarColumn(Length = 100, IsNullable = false)]
+    public string Title { get; set; }
+
+    [SugarColumn(ColumnDataType = "text", IsNullable = false)]
+    public string Content { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false)]
+    public string PushType { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false)]
+    public string TargetType { get; set; }
+
+    [SugarColumn(Length = 200)]
+    public string TargetParam { get; set; }
+
+    public DateTime? ScheduleTime { get; set; }
+
+    public DateTime? SendTime { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int TotalCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int SuccessCount { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int ClickCount { get; set; }
+
+    [SugarColumn(Length = 20, DefaultValue = "pending")]
+    public string Status { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+
+    public DateTime? UpdateTime { get; set; }
+}
+```
+
+---
+
+## 4. 接口设计
+
+### 4.1 Banner管理接口
+
+#### 4.1.1 Banner列表
+
+```
+GET /api/admin/v1/banner/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码，默认为1
+- size: 每页条数，默认为20
+- position: 位置编码(可选): home_top/template_top
+- status: 状态(可选): 0-禁用 1-启用
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "title": "圣诞活动",
+                "image_url": "https://...",
+                "link_type": "template",
+                "link_url": "/template/t_001",
+                "position": "home_top",
+                "sort": 1,
+                "start_time": "2025-12-01 00:00:00",
+                "end_time": "2025-12-31 23:59:59",
+                "status": 1,
+                "create_time": "2025-12-01 10:00:00"
+            }
+        ],
+        "total": 10,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.1.2 新增Banner
+
+```
+POST /api/admin/v1/banner
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request: {
+    "title": "新年活动",
+    "image_url": "https://xxx.com/banner.jpg",
+    "link_type": "web",
+    "link_url": "https://xxx.com/activity",
+    "position": "home_top",
+    "sort": 1,
+    "start_time": "2026-01-01 00:00:00",
+    "end_time": "2026-01-31 23:59:59"
+}
+
+Response: {
+    "code": 0,
+    "message": "success"
+}
+```
+
+#### 4.1.3 Banner排序
+
+```
+POST /api/admin/v1/banner/sort
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request: {
+    "banner_ids": [3, 1, 2]
+}
+
+Response: {
+    "code": 0,
+    "message": "success"
+}
+```
+
+### 4.2 话题管理接口
+
+#### 4.2.1 话题列表
+
+```
+GET /api/admin/v1/topic/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码
+- size: 每页条数
+- status: active/closed
+- is_official: 0/1
+- keyword: 关键词
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "topic_id": "topic_001",
+                "name": "#生日礼物#",
+                "description": "分享你的生日拼豆作品",
+                "cover_url": "https://...",
+                "is_official": 1,
+                "status": "active",
+                "post_count": 1234,
+                "participant_count": 567,
+                "create_time": "2026-01-01 10:00:00"
+            }
+        ],
+        "total": 50,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.2.2 新增话题
+
+```
+POST /api/admin/v1/topic
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request: {
+    "name": "#拼豆教程#",
+    "description": "分享你的拼豆制作技巧",
+    "cover_url": "https://...",
+    "is_official": 1
+}
+
+Response: {
+    "code": 0,
+    "message": "success"
+}
+```
+
+#### 4.2.3 关闭话题
+
+```
+POST /api/admin/v1/topic/{id}/close
+Authorization: Bearer {token}
+
+Response: {
+    "code": 0,
+    "message": "success"
+}
+```
+
+### 4.3 专题管理接口
+
+#### 4.3.1 专题列表
+
+```
+GET /api/admin/v1/special-topic/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码
+- size: 每页条数
+- status: 0-下架 1-上架
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "name": "圣诞专题",
+                "description": "圣诞主题拼豆模板合集",
+                "cover_url": "https://...",
+                "template_count": 20,
+                "start_time": "2025-12-01",
+                "end_time": "2025-12-31",
+                "status": 1,
+                "create_time": "2025-12-01 10:00:00"
+            }
+        ],
+        "total": 10,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+### 4.4 推送管理接口
+
+#### 4.4.1 推送列表
+
+```
+GET /api/admin/v1/push/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码
+- size: 每页条数
+- push_type: 推送类型
+- target_type: 目标类型
+- status: pending/sending/sent/failed
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "push_id": "push_001",
+                "title": "新功能上线",
+                "content": "拼豆APP 2.0版本发布...",
+                "push_type": "system",
+                "target_type": "all",
+                "schedule_time": null,
+                "send_time": "2026-06-07 10:00:00",
+                "total_count": 10000,
+                "success_count": 9800,
+                "click_count": 1500,
+                "status": "sent",
+                "create_time": "2026-06-07 09:30:00"
+            }
+        ],
+        "total": 50,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.4.2 发送推送
+
+```
+POST /api/admin/v1/push/send
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request: {
+    "title": "新功能上线",
+    "content": "拼豆APP 2.0版本发布，新年活动火热进行中！",
+    "push_type": "system",
+    "target_type": "all"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success",
+    "data": {
+        "push_id": "push_001",
+        "total_count": 10000,
+        "success_count": 9800
+    }
+}
+```
+
+#### 4.4.3 定时推送
+
+```
+POST /api/admin/v1/push/schedule
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request: {
+    "title": "限时活动",
+    "content": "今日会员特惠，仅此一天！",
+    "push_type": "activity",
+    "target_type": "tag",
+    "target_param": "member",
+    "schedule_time": "2026-06-10 10:00:00"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success",
+    "data": {
+        "push_id": "push_002",
+        "schedule_time": "2026-06-10 10:00:00"
+    }
+}
+```
+
+---
+
+## 5. 核心流程设计
+
+### 5.1 Banner展示逻辑
+
+```csharp
+public class BannerService : IBannerService
+{
+    public async Task<List<Banner>> GetActiveBannersAsync(string position)
+    {
+        // 1. 检查缓存
+        var cacheKey = $"banner:{position}";
+        var cached = await _redis.GetAsync<List<Banner>>(cacheKey);
+        if (cached != null) return cached;
+
+        // 2. 查询数据库(有效期内、上线状态)
+        var banners = await _repository.GetListAsync(b =>
+            b.Position == position &&
+            b.Status == 1 &&
+            b.StartTime <= DateTime.Now &&
+            b.EndTime >= DateTime.Now,
+            b => b.Sort);
+
+        // 3. 缓存结果(5分钟)
+        await _redis.SetAsync(cacheKey, banners, TimeSpan.FromMinutes(5));
+
+        return banners;
+    }
+}
+```
+
+### 5.2 推送发送流程
+
+```csharp
+public class PushJob
+{
+    public async Task ExecuteScheduledPushAsync(long pushRecordId)
+    {
+        var record = await _repository.GetByIdAsync(pushRecordId);
+
+        // 1. 构建推送请求
+        var pushRequest = new JiguangPushRequest
+        {
+            Title = record.Title,
+            Content = record.Content,
+            Platform = JiguangPlatform.All,
+            Audience = BuildAudience(record.TargetType, record.TargetParam)
+        };
+
+        // 2. 调用推送服务
+        var result = await _pushClient.SendAsync(pushRequest);
+
+        // 3. 更新推送状态
+        record.SendTime = DateTime.Now;
+        record.TotalCount = result.TotalCount;
+        record.SuccessCount = result.SuccessCount;
+        record.Status = result.Success ? "sent" : "failed";
+        await _repository.UpdateAsync(record);
+    }
+
+    private JiguangAudience BuildAudience(string targetType, string targetParam)
+    {
+        return targetType switch
+        {
+            "all" => JiguangAudience.All,
+            "tag" => JiguangAudience.Tag(targetParam),
+            "user" => JiguangAudience.Alias(targetParam.Split(',')),
+            _ => JiguangAudience.All
+        };
+    }
+}
+```
+
+### 5.3 定时任务配置
+
+```csharp
+// 在Program.cs中配置Hangfire
+services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(connectionString));
+
+// 注册定时任务
+RecurringJob.AddOrUpdate<PushJob>(
+    "push-scheduled-job",
+    job => job.ExecuteScheduledPushAsync(0),
+    "*/5 * * * *"); // 每5分钟检查一次
+```
+
+---
+
+## 6. 业务规则
+
+### 6.1 Banner规则
+
+- Banner位置: home_top(首页顶部), template_top(模板页顶部)
+- 排序: 数字越小越靠前
+- 有效期: 必须在指定时间范围内
+- 链接类型: template(模板)/topic(话题)/web(网页)/activity(活动)
+
+### 6.2 话题规则
+
+- 名称格式: 必须以#开头和结尾
+- 状态: active(进行中)/closed(已关闭)
+- 关闭后不可再使用，但历史数据保留
+
+### 6.3 推送规则
+
+- 推送类型: system(系统消息)/activity(活动通知)
+- 目标类型: all(全部用户)/tag(标签用户)/user(指定用户)
+- 定时推送: 最小间隔5分钟，最大30天
+
+---
+
+## 7. 异常处理
+
+| 场景 | 处理 |
+|------|------|
+| Banner图片上传失败 | 返回"图片上传失败，请重试" |
+| 话题名称已存在 | 返回"话题名称已存在" |
+| 推送发送失败 | 返回"推送发送失败，记录失败日志" |
+| 定时推送已过期 | 返回"定时推送时间已过期" |
+| 无推送权限 | 返回403，"无推送权限" |
+
+---
+
+## 8. 前端设计
+
+### 8.1 页面路由
+
+| 页面 | 路由 | 权限 |
+|------|------|------|
+| Banner管理 | /operation/banner | operation:view |
+| 话题管理 | /operation/topic | operation:view |
+| 专题管理 | /operation/special-topic | operation:view |
+| 推送管理 | /operation/push | operation:view |
+
+### 8.2 Vue组件结构
+
+```
+views/
+└── operation/
+    ├── BannerList. vue         # Banner列表
+    ├── BannerEdit. vue         # Banner编辑
+    ├── TopicList. vue          # 话题列表
+    ├── TopicEdit. vue          # 话题编辑
+    ├── SpecialTopicList. vue   # 专题列表
+    ├── SpecialTopicEdit. vue   # 专题编辑
+    ├── PushList. vue           # 推送列表
+    └── PushSend. vue           # 发送推送
+```
+
+---
+
+## 9. 验收标准
+
+### 9.1 功能验收
+
+- [ ] Banner增删改查正常
+- [ ] Banner排序正常
+- [ ] 话题增删改查正常
+- [ ] 话题关闭/开启正常
+- [ ] 专题增删改查正常
+- [ ] 推送发送正常
+- [ ] 定时推送正常
+
+### 9.2 运营配置
+
+- [ ] Banner位置配置正确
+- [ ] 话题状态同步正确
+- [ ] 推送统计数据准确
+
+---
+
+## 10. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v1.0 | 2026-06-07 | 初稿，基于概要设计 |
+
+---
+
+*运营管理模块详细设计结束*

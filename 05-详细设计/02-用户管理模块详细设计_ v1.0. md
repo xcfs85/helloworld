@@ -1,0 +1,695 @@
+# 用户管理模块详细设计
+> **模块**: 后台管理系统 - 用户管理
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 模块概述
+
+### 1.1 功能定位
+
+用户管理模块用于管理移动端用户账号，支持查看用户信息、会员管理、账号状态管理等运营功能。
+
+### 1.2 功能清单
+
+| 功能 | 说明 | 优先级 |
+|------|------|--------|
+| 用户列表 | 查看用户列表，支持筛选 | P0 |
+| 用户详情 | 查看用户详细信息 | P0 |
+| 禁用账号 | 禁用违规用户 | P1 |
+| 启用账号 | 恢复正常用户 | P1 |
+| 会员列表 | 查看会员列表 | P1 |
+| 开通会员 | 手动给用户开通会员 | P1 |
+| 会员权益配置 | 配置会员等级权益 | P2 |
+
+---
+
+## 2. 技术架构
+
+### 2.1 技术选型
+
+| 技术 | 说明 |
+|------|------|
+| ORM | SqlSugar |
+| 缓存 | Redis (用户数据缓存) |
+| 数据脱敏 | 手机号、身份证等敏感信息脱敏 |
+
+### 2.2 项目结构
+
+```
+Pindou.Admin/
+├── Controllers/
+│   ├── UserController.cs          # 用户管理控制器
+│   └── MemberController.cs        # 会员管理控制器
+├── Services/
+│   ├── IUserService.cs            # 用户服务接口
+│   ├── UserService.cs             # 用户服务实现
+│   ├── IMemberService.cs          # 会员服务接口
+│   └── MemberService.cs           # 会员服务实现
+├── Models/
+│   ├── DTOs/
+│   │   ├── UserListRequest.cs     # 用户列表请求
+│   │   ├── UserDetailResponse.cs  # 用户详情响应
+│   │   └── MemberOpenRequest.cs   # 开通会员请求
+│   └── Entities/
+│       ├── User.cs                # 用户实体
+│       ├── MemberOrder.cs         # 会员订单实体
+│       └── MemberProduct.cs       # 会员产品实体
+└── Common/
+    ├── DesensitizationHelper.cs   # 数据脱敏帮助类
+    └── StatisticsHelper.cs        # 统计帮助类
+```
+
+### 2.3 核心服务设计
+
+#### 2.3.1 用户服务 (UserService)
+
+```csharp
+public interface IUserService
+{
+    /// <summary>获取用户列表</summary>
+    Task<PagedList<UserListResponse>> GetListAsync(UserListRequest request);
+
+    /// <summary>获取用户详情</summary>
+    Task<UserDetailResponse> GetDetailAsync(long id);
+
+    /// <summary>搜索用户</summary>
+    Task<List<UserSearchResponse>> SearchAsync(string keyword);
+
+    /// <summary>禁用用户</summary>
+    Task<Result> DisableAsync(long id, string reason);
+
+    /// <summary>启用用户</summary>
+    Task<Result> EnableAsync(long id);
+
+    /// <summary>获取用户发布的内容</summary>
+    Task<PagedList<Post>> GetUserPostsAsync(long userId, int page, int size);
+}
+```
+
+---
+
+## 3. 数据库设计
+
+### 3.1 表结构
+
+#### 3.1.1 用户表 (user)
+
+```csharp
+[ SugarTable("user") ]
+public class User
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false, UniqueIndex = "idx_user_id")]
+    public string UserId { get; set; }
+
+    [SugarColumn(Length = 50, IsNullable = false)]
+    public string Nickname { get; set; }
+
+    [SugarColumn(Length = 500)]
+    public string Avatar { get; set; }
+
+    [SugarColumn(Length = 20)]
+    public string Phone { get; set; }
+
+    [SugarColumn(Length = 100)]
+    public string Unionid { get; set; }
+
+    [SugarColumn(Length = 100)]
+    public string Openid { get; set; }
+
+    [SugarColumn(Length = 100)]
+    public string AppleUserId { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int Gender { get; set; }
+
+    [SugarColumn(Length = 50)]
+    public string City { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false)]
+    public string RegisterMethod { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime RegisterTime { get; set; }
+
+    public DateTime? LastLoginTime { get; set; }
+
+    [SugarColumn(Length = 50)]
+    public string LastLoginIp { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int IsMember { get; set; }
+
+    [SugarColumn(Length = 20)]
+    public string MemberGrade { get; set; }
+
+    public DateTime? MemberExpireTime { get; set; }
+
+    [SugarColumn(DefaultValue = "1")]
+    public int Status { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+
+    public DateTime? UpdateTime { get; set; }
+}
+```
+
+#### 3.1.2 会员订单表 (member_order)
+
+```csharp
+[ SugarTable("member_order") ]
+public class MemberOrder
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 50, IsNullable = false, UniqueIndex = "idx_order_id")]
+    public string OrderId { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public long UserId { get; set; }
+
+    [SugarColumn(Length = 50, IsNullable = false)]
+    public string ProductId { get; set; }
+
+    [SugarColumn(Length = 100, IsNullable = false)]
+    public string ProductName { get; set; }
+
+    [SugarColumn(Length = 10, IsNullable = false, DecimalDigits = "2")]
+    public decimal Amount { get; set; }
+
+    [SugarColumn(Length = 20)]
+    public string PayMethod { get; set; }
+
+    public DateTime? PayTime { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime StartTime { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime EndTime { get; set; }
+
+    [SugarColumn(DefaultValue = "0")]
+    public int Status { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+}
+```
+
+#### 3.1.3 会员产品表 (member_product)
+
+```csharp
+[ SugarTable("member_product") ]
+public class MemberProduct
+{
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
+    public long Id { get; set; }
+
+    [SugarColumn(Length = 50, IsNullable = false, UniqueIndex = "idx_product_id")]
+    public string ProductId { get; set; }
+
+    [SugarColumn(Length = 100, IsNullable = false)]
+    public string ProductName { get; set; }
+
+    [SugarColumn(Length = 20, IsNullable = false)]
+    public string Grade { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public int DurationDays { get; set; }
+
+    [SugarColumn(Length = 10, IsNullable = false, DecimalDigits = "2")]
+    public decimal Price { get; set; }
+
+    [SugarColumn(Length = 10, DecimalDigits = "2")]
+    public decimal OriginalPrice { get; set; }
+
+    [SugarColumn(DefaultValue = "-1")]
+    public int DailyGenerations { get; set; }
+
+    [SugarColumn(ColumnDataType = "text")]
+    public string Features { get; set; }
+
+    [SugarColumn(DefaultValue = "1")]
+    public int Status { get; set; }
+
+    [SugarColumn(IsNullable = false)]
+    public DateTime CreateTime { get; set; }
+}
+```
+
+---
+
+## 4. 接口设计
+
+### 4.1 用户管理接口
+
+#### 4.1.1 用户列表
+
+```
+GET /api/admin/v1/user/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码，默认1
+- size: 每页条数，默认20
+- user_id: 用户ID(可选)
+- nickname: 昵称关键词(可选)
+- phone: 手机号(可选)
+- register_method: 注册方式(可选): phone/wechat/apple/guest
+- is_member: 会员状态(可选): 0-非会员 1-会员
+- status: 账号状态(可选): 0-禁用 1-正常
+- start_time: 注册开始时间(可选)
+- end_time: 注册结束时间(可选)
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "id": 1,
+                "user_id": "u_1",
+                "nickname": "小美",
+                "avatar": "https://xxx.com/avatar.jpg",
+                "phone": "138****8000",
+                "register_method": "wechat",
+                "register_time": "2026-01-01 10:00:00",
+                "is_member": 1,
+                "member_grade": "VIP1",
+                "status": 1,
+                "post_count": 23,
+                "follower_count": 89
+            }
+        ],
+        "total": 1234,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.1.2 用户详情
+
+```
+GET /api/admin/v1/user/{id}
+Authorization: Bearer {token}
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "id": 1,
+        "user_id": "u_1",
+        "nickname": "小美",
+        "avatar": "https://xxx.com/avatar.jpg",
+        "phone": "138****8000",
+        "gender": 2,
+        "city": "北京",
+        "register_method": "wechat",
+        "register_time": "2026-01-01 10:00:00",
+        "last_login_time": "2026-06-07 09:30:00",
+        "last_login_ip": "123.125.115.110",
+        "is_member": 1,
+        "member_grade": "VIP1",
+        "member_expire_time": "2026-12-31 23:59:59",
+        "status": 1,
+        "stats": {
+            "post_count": 23,
+            "tutorial_count": 5,
+            "follower_count": 89,
+            "following_count": 45,
+            "like_count": 1234,
+            "favorite_count": 56
+        },
+        "orders": [
+            {
+                "order_id": "o_xxx",
+                "product_name": "月度会员",
+                "amount": 19.90,
+                "pay_time": "2026-01-01"
+            }
+        ]
+    }
+}
+```
+
+#### 4.1.3 禁用用户
+
+```
+POST /api/admin/v1/user/{id}/disable
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "reason": "违规发布广告内容"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success"
+}
+```
+
+#### 4.1.4 启用用户
+
+```
+POST /api/admin/v1/user/{id}/enable
+Authorization: Bearer {token}
+
+Response:
+{
+    "code": 0,
+    "message": "success"
+}
+```
+
+#### 4.1.5 查看用户发布内容
+
+```
+GET /api/admin/v1/user/{id}/posts
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码
+- size: 每页条数
+- type: 类型(work/tutorial/question)
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "post_id": "p_xxx",
+                "type": "work",
+                "title": "给闺蜜的生日礼物",
+                "content": "第一次做拼豆...",
+                "media": [...],
+                "like_count": 23,
+                "comment_count": 5,
+                "status": "approved",
+                "create_time": "2026-06-01 10:00:00"
+            }
+        ],
+        "total": 23,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+### 4.2 会员管理接口
+
+#### 4.2.1 会员列表
+
+```
+GET /api/admin/v1/member/list
+Authorization: Bearer {token}
+
+Query Parameters:
+- page: 页码
+- size: 每页条数
+- grade: 会员等级
+- status: 状态
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [...],
+        "total": 100,
+        "page": 1,
+        "size": 20
+    }
+}
+```
+
+#### 4.2.2 开通会员
+
+```
+POST /api/admin/v1/member/open
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "user_id": 1,
+    "product_id": "monthly_vip",
+    "duration_days": 30,
+    "remark": "手动开通会员"
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success",
+    "data": {
+        "member_expire_time": "2026-07-07 23:59:59"
+    }
+}
+```
+
+#### 4.2.3 会员产品列表
+
+```
+GET /api/admin/v1/member/product/list
+Authorization: Bearer {token}
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "list": [
+            {
+                "product_id": "monthly_vip",
+                "product_name": "月度会员",
+                "grade": "VIP1",
+                "duration_days": 30,
+                "price": 19.90,
+                "original_price": 29.90,
+                "daily_generations": 10,
+                "features": ["无限生成", "高清导出", "专属客服"],
+                "status": 1
+            }
+        ]
+    }
+}
+```
+
+#### 4.2.4 新增会员产品
+
+```
+POST /api/admin/v1/member/product
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request:
+{
+    "product_id": "yearly_vip",
+    "product_name": "年度会员",
+    "grade": "VIP2",
+    "duration_days": 365,
+    "price": 199.00,
+    "original_price": 299.00,
+    "daily_generations": -1,
+    "features": ["无限生成", "高清导出", "专属客服", "优先客服"],
+    "status": 1
+}
+
+Response:
+{
+    "code": 0,
+    "message": "success"
+}
+```
+
+---
+
+## 5. 核心流程设计
+
+### 5.1 用户禁用流程
+
+```
+1. 管理员点击"禁用"按钮
+   └─> 弹出禁用原因输入框
+
+2. 提交禁用请求
+   └─> 后端更新用户状态(status=0)
+   └─> 记录操作日志
+
+3. 通知用户(可选)
+   └─> 发送系统消息通知用户账号已被禁用
+   └─> 记录通知日志
+
+4. 返回结果
+   └─> 刷新用户列表
+```
+
+### 5.2 会员开通流程
+
+```
+1. 管理员选择用户和产品
+   └─> 选择用户(搜索或列表选择)
+   └─> 选择会员产品或自定义天数
+
+2. 确认开通
+   └─> 后端校验用户是否存在
+   └─> 计算新的到期时间(原到期时间+新增时长)
+   └─> 更新用户会员状态
+   └─> 创建会员订单(类型: 手动开通)
+
+3. 返回结果
+   └─> 返回新的到期时间
+   └─> 记录操作日志
+```
+
+### 5.3 数据脱敏处理
+
+```csharp
+public static class DesensitizationHelper
+{
+    /// <summary>手机号脱敏</summary>
+    public static string DesensitizePhone(string phone)
+    {
+        if (string.IsNullOrEmpty(phone)) return "";
+        if (phone.Length < 11) return phone.Substring(0, 3) + "****";
+        return phone.Substring(0, 3) + "****" + phone.Substring(7);
+    }
+
+    /// <summary>身份证脱敏</summary>
+    public static string DesensitizeIdCard(string idCard)
+    {
+        if (string.IsNullOrEmpty(idCard)) return "";
+        return idCard.Substring(0, 4) + "**********" + idCard.Substring(14);
+    }
+
+    /// <summary>邮箱脱敏</summary>
+    public static string DesensitizeEmail(string email)
+    {
+        if (string.IsNullOrEmpty(email)) return "";
+        var atIndex = email.IndexOf('@');
+        if (atIndex <= 0) return email;
+        var prefix = email.Substring(0, atIndex);
+        var suffix = email.Substring(atIndex);
+        if (prefix.Length <= 2) return prefix.Substring(0, 1) + "***" + suffix;
+        return prefix.Substring(0, 2) + "***" + suffix;
+    }
+
+    /// <summary>IP脱敏</summary>
+    public static string DesensitizeIp(string ip)
+    {
+        if (string.IsNullOrEmpty(ip)) return "";
+        var parts = ip.Split('.');
+        if (parts.Length == 4)
+            return $"{parts[0]}.{parts[1]}.*.*";
+        return ip;
+    }
+}
+```
+
+---
+
+## 6. 业务规则
+
+### 6.1 用户状态管理
+
+| 状态 | 说明 | 可用操作 |
+|------|------|----------|
+| 正常 | 正常使用的账号 | 禁用、查看详情 |
+| 禁用 | 被禁用的账号 | 启用、查看详情 |
+
+### 6.2 禁用规则
+
+- 禁用后用户无法登录APP
+- 禁用后保留用户所有数据
+- 禁用时可选择禁言(禁止发帖评论)
+- 禁用后可手动启用恢复
+
+### 6.3 会员开通规则
+
+- 手动开通不经过支付流程
+- 开通后即时生效
+- 会员时长可累加(若原会员未过期)
+- 开通后记录订单信息
+
+---
+
+## 7. 异常处理
+
+| 场景 | 处理 |
+|------|------|
+| 用户不存在 | 返回404，"用户不存在" |
+| 用户已禁用 | 返回"用户账号已被禁用" |
+| 开通会员-用户不存在 | 返回"用户不存在" |
+| 开通会员-参数错误 | 返回具体错误原因 |
+| 产品不存在 | 返回"会员产品不存在" |
+
+---
+
+## 8. 前端设计
+
+### 8.1 页面路由
+
+| 页面 | 路由 | 权限 |
+|------|------|------|
+| 用户列表 | /user/list | user:view |
+| 用户详情 | /user/detail/:id | user:view |
+| 会员列表 | /member/list | user:view |
+| 会员详情 | /member/detail/:id | user:view |
+| 会员产品 | /member/product | user:view |
+| 会员订单 | /member/order | user:view |
+
+### 8.2 Vue组件结构
+
+```
+views/
+└── user/
+    ├── UserList.vue          # 用户列表
+    ├── UserDetail.vue        # 用户详情
+    ├── MemberList.vue        # 会员列表
+    ├── MemberDetail.vue      # 会员详情
+    ├── MemberProduct.vue     # 会员产品配置
+    └── MemberOrder.vue       # 会员订单列表
+```
+
+---
+
+## 9. 验收标准
+
+### 9.1 功能验收
+
+- [ ] 用户列表展示正常
+- [ ] 筛选/搜索功能正常
+- [ ] 用户详情展示完整
+- [ ] 禁用账号功能正常
+- [ ] 启用账号功能正常
+- [ ] 会员列表展示正常
+- [ ] 开通会员功能正常
+- [ ] 会员产品配置正常
+
+### 9.2 数据验收
+
+- [ ] 用户数据脱敏显示
+- [ ] 统计数据计算正确
+- [ ] 会员状态同步正确
+
+---
+
+## 10. 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v1.0 | 2026-06-07 | 初稿，基于概要设计 |
+
+---
+
+*用户管理模块详细设计结束*

@@ -1,0 +1,459 @@
+# 拼豆系统消息推送方案
+
+> **项目**: 拼豆 - AI 照片转拼豆工具
+> **版本**: V1.0
+> **编制**:
+> **日期**: 2026-06-07
+
+---
+
+## 1. 概述
+
+### 1.1 推送场景
+
+本方案涵盖以下消息推送场景：
+
+| 类型 | 说明 | 推送方式 |
+|------|------|----------|
+| 互动消息 | 评论、点赞、关注 | 推送+站内信 |
+| 系统通知 | 官方公告、活动 | 推送+站内信 |
+| 生成完成 | 拼豆图生成完成 | WebSocket+推送 |
+| 提醒 | 草稿提醒、任务提醒 | 推送 |
+| 营销 | 会员优惠、活动 | 推送 |
+
+### 1.2 推送架构
+
+```┌─────────────────────────────────────────────────────────────────────┐
+│                       消息推送架构                                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────────┐                                                  │
+│  │   业务服务    │  ←─ 触发消息事件                                 │
+│  └──────┬───────┘                                                  │
+│         │                                                           │
+│         ▼                                                           │
+│  ┌──────────────────────────────────────────────────────────┐      │
+│  │                    消息队列                                │      │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │      │
+│  │  │  互动消息   │  │  系统通知   │  │  生成完成   │       │      │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘       │      │
+│  └──────────────────────────────────────────────────────────┘      │
+│         │                                                           │
+│         ▼           ┌──────────────────────────────────┐          │
+│  ┌──────────────┐   │         消息分发层               │          │
+│  │   站内消息    │   │  ┌───────────┐  ┌────────────┐ │          │
+│  │   (应用内)    │◀──│  │ 推送服务   │  │  WebSocket │ │          │
+│  └──────────────┘   │  │  (极光)    │  │  (实时)    │ │          │
+│                     │  └───────────┘  └────────────┘ │          │
+│                     └──────────────────────────────────┘          │
+│                                      │                              │
+│                                      ▼                              │
+│                     ┌──────────────────────────────────┐          │
+│                     │         用户设备                  │          │
+│                     │  ┌───────────┐  ┌────────────┐   │          │
+│                     │  │    iOS    │  │  Android   │   │          │
+│                     │  └───────────┘  └────────────┘   │          │
+│                     └──────────────────────────────────┘          │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. 消息类型定义
+
+### 2.1 消息分类
+
+| 分类 | 子类型 | 说明 | 实时性 |
+|------|--------|------|--------|
+| 互动 | comment | 收到评论 | 实时 |
+| 互动 | like | 收到点赞 | 实时 |
+| 互动 | follow | 新粉丝 | 实时 |
+| 互动 | at | @我 | 实时 |
+| 系统 | system | 系统通知 | 实时 |
+| 系统 | announcement | 公告 | 批量 |
+| 任务 | diagram_done | 生成完成 | 实时 |
+| 任务 | draft_remind | 草稿提醒 | 定时 |
+| 会员 | member_expire | 会员即将过期 | 定时 |
+| 营销 | coupon | 优惠券 | 批量 |
+
+### 2.2 消息模板
+
+#### 2.2.1 评论通知
+```json
+{
+  "type": "comment",
+  "title": "收到新评论",
+  "content": "用户「{nickname}」评论了你的帖子：{comment_preview}...",
+  "extras": {
+    "post_id": "post_xxx",
+    "comment_id": "comment_xxx",
+    "user_id": "user_xxx"
+  }
+}
+```
+
+#### 2.2.2 点赞通知
+```json
+{
+  "type": "like",
+  "title": "收到新点赞",
+  "content": "用户「{nickname}」赞了你的帖子",
+  "extras": {
+    "post_id": "post_xxx",
+    "user_id": "user_xxx"
+  }
+}
+```
+
+#### 2.2.3 关注通知
+```json
+{
+  "type": "follow",
+  "title": "新粉丝",
+  "content": "用户「{nickname}」关注了你",
+  "extras": {
+    "user_id": "user_xxx"
+  }
+}
+```
+
+#### 2.2.4 生成完成
+```json
+{
+  "type": "diagram_done",
+  "title": "拼豆图生成完成",
+  "content": "您的拼豆图「{name}」已生成完成，点击查看",
+  "extras": {
+    "diagram_id": "dia_xxx"
+  }
+}
+```
+
+---
+
+## 3. 推送策略
+
+### 3.1 实时推送
+
+适用于：互动消息、生成完成
+
+**推送流程**：
+```用户行为 → 消息事件 → 消息服务处理 → 推送服务 → 极光推送
+                                      ↘ WebSocket → 应用内
+```
+
+### 3.2 批量推送
+
+适用于：系统公告、营销活动
+
+**推送流程**：
+```运营后台创建 → 消息服务定时发送 → 分批次推送 → 统计报告
+```
+
+### 3.3 定时推送
+
+适用于：草稿提醒、会员过期提醒
+
+**定时任务**：
+| 任务 | 触发时间 | 说明 |
+|------|----------|------|
+| 草稿提醒 | 每天10:00 | 7天未编辑的草稿 |
+| 会员过期 | 到期前7天 | 会员即将过期提醒 |
+
+---
+
+## 4. 用户设置
+
+### 4.1 消息通知设置
+
+| 设置项 | 默认值 | 说明 |
+|--------|--------|------|
+| comment_enabled | true | 评论通知 |
+| like_enabled | true | 点赞通知 |
+| follow_enabled | true | 关注通知 |
+| at_enabled | true | @通知 |
+| system_enabled | true | 系统通知 |
+| marketing_enabled | true | 营销通知 |
+| quiet_hours_enabled | false | 勿扰模式 |
+| quiet_hours_start | "22:00" | 勿扰开始时间 |
+| quiet_hours_end | "08:00" | 勿扰结束时间 |
+
+### 4.2 静默处理
+
+在勿扰时间段内：
+- 消息仍会入库
+- 推送不发送
+- 用户打开APP后展示
+
+---
+
+## 5. 技术实现
+
+### 5.1 消息服务接口
+
+```csharp
+// 创建消息
+public async Task<Message> CreateMessage(CreateMessageRequest request)
+{
+    var message = new Message
+    {
+        Id = Guid.NewGuid().ToString(),
+        UserId = request.UserId,
+        Type = request.Type,
+        Title = request.Title,
+        Content = request.Content,
+        Extras = request.Extras,
+        IsRead = false,
+        CreateTime = DateTime.UtcNow
+    };
+
+    // 1. 存入数据库
+    await _messageRepo.InsertAsync(message);
+
+    // 2. 发送推送
+    if (await _userSettingsService.IsPushEnabled(request.UserId, request.Type))
+    {
+        await _pushService.SendAsync(request.UserId, request);
+    }
+
+    // 3. WebSocket实时推送
+    await _webSocketService.SendToUser(request.UserId, message);
+
+    return message;
+}
+
+// 标记已读
+public async Task MarkAsRead(string userId, string messageId, string type)
+{
+    await _messageRepo.MarkAsReadAsync(userId, messageId);
+    await _userStatsService.UpdateUnreadCountAsync(userId, type, -1);
+}
+```
+
+### 5.2 WebSocket推送
+
+**连接**：
+```wss://api.pindou.com/ws?token={access_token}```
+
+**消息格式**：
+```json
+{
+  "type": "message",
+  "data": {
+    "id": "msg_xxx",
+    "message_type": "comment",
+    "title": "收到新评论",
+    "content": "用户「小明」评论了你",
+    "extras": {...},
+    "create_time": "2026-06-07T10:00:00Z"
+  }
+}
+```
+
+### 5.3 推送服务封装
+
+```csharp
+public async Task SendPushNotificationAsync(string userId, NotificationRequest request)
+{
+    // 1. 获取用户设备信息
+    var devices = await _deviceService.GetUserDevicesAsync(userId);
+
+    // 2. 过滤已禁用通知的类型
+    if (!await _settingsService.IsNotificationEnabled(userId, request.Type))
+    {
+        return;
+    }
+
+    // 3. 检查勿扰时间
+    if (await _settingsService.IsInQuietHours(userId))
+    {
+        // 只存库，不推送
+        return;
+    }
+
+    // 4. 发送推送
+    foreach (var device in devices)
+    {
+        await _pushProvider.SendAsync(new PushRequest
+        {
+            DeviceToken = device.Token,
+            Platform = device.Platform,
+            Title = request.Title,
+            Content = request.Content,
+            Extras = request.Extras
+        });
+    }
+}
+```
+
+---
+
+## 6. 推送配置
+
+### 6.1 推送服务商
+
+**极光推送 (JPush)**：
+- 优势：通道稳定、功能完善
+- 场景：全量推送、实时推送
+
+### 6.2 推送参数配置
+
+```json
+{
+  "Push": {
+    "JPush": {
+      "AppKey": "${JPUSH_APP_KEY}",
+      "MasterSecret": "${JPUSH_MASTER_SECRET}",
+      "ApnsProduction": true  // 生产环境
+    },
+    "Notification": {
+      "sound": "default",
+      "badge": "+1",
+      "channel_id": "pindou_message",
+      "channel_name": "消息通知"
+    }
+  }
+}
+```
+
+### 6.3 推送限制
+
+| 维度 | 限制 | 说明 |
+|------|------|------|
+| 单次推送 | 10,000条 | 超过需分批 |
+| 频率限制 | 100条/分钟 | 单用户 |
+| 消息大小 | 4KB | 超过截断 |
+
+---
+
+## 7. 未读消息管理
+
+### 7.1 未读计数
+
+每个用户维护各类型未读数：
+```json
+{
+  "comment": 12,
+  "like": 234,
+  "follow": 5,
+  "at": 0,
+  "system": 3,
+  "total": 254
+}
+```
+
+### 7.2 未读接口
+
+**获取未读数**：
+```
+GET /api/v1/message/unread
+```
+
+**响应**：
+```json
+{  "code": 0,
+  "data": {
+    "comment": 12,
+    "like": 234,
+    "follow": 5,
+    "at": 0,
+    "system": 3,    "total": 254
+  }
+}
+```
+
+### 7.3 标记已读
+
+**单条标记**：
+```POST /api/v1/message/read
+{  "type": "comment",  "message_id": "msg_xxx"}
+```
+
+**全部标记**：
+```POST /api/v1/message/read/all
+{  "type": "comment"}
+```
+
+---
+
+## 8. 消息存储
+
+### 8.1 存储策略
+
+| 消息类型 | 存储周期 | 说明 |
+|----------|----------|------|
+| 互动消息 | 30天 | 用户清理 | | 系统消息 | 90天 | 重要消息长期保留 |
+| 公告 | 180天 | 长期保留 | | 草稿提醒 | 7天 | 清理后不再提醒 |
+
+### 8.2 清理策略
+
+- 每天定时清理超过30天的互动消息
+- 用户可手动清理全部消息
+- 会员消息长期保留
+
+---
+
+## 9. 数据统计
+
+### 9.1 推送统计指标
+
+| 指标 | 说明 |
+|------|------|
+| 发送数 | 推送到推送服务 |
+| 成功数 | 成功到达设备 |
+| 展示数 | 用户看到通知 |
+| 点击数 | 用户点击通知 |
+| 点击率 | 点击数/展示数 |
+
+### 9.2 统计报表
+
+- 每日推送统计
+- 每小时推送趋势
+- 各类型消息占比
+- 用户打开率分析
+
+---
+
+## 10. 监控告警
+
+### 10.1 监控指标
+
+| 指标 | 告警阈值 |
+|------|----------|
+| 推送成功率 | < 90% |
+| 推送延迟 | > 5s |
+| WebSocket在线 | < 80% |
+| 消息积压 | > 1000条 |
+
+### 10.2 告警方式
+
+- 邮件通知：技术负责人
+- 短信通知：P0级故障
+- 钉钉群：日常通知
+
+---
+
+## 11. 附录
+
+### 11.1 消息事件列表
+
+| 事件 | 触发场景 | 消息类型 | 推送 |
+|------|----------|----------|------|
+| post_comment | 发表评论 | comment | 是 |
+| post_like | 点赞帖子 | like | 是 |
+| user_follow | 关注用户 | follow | 是 |
+| post_at | @用户 | at | 是 |
+| diagram_complete | 生成完成 | diagram_done | 是 |
+| member_expire | 会员过期 | member_expire | 是 |
+| system_notice | 系统公告 | system | 是 |
+
+### 11.2 版本历史
+
+| 版本 | 日期 | 修订内容 |
+|------|------|----------|
+| v1.0 | 2026-06-07 | 初版 |
+
+---
+
+*消息推送方案结束*
