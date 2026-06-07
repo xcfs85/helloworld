@@ -56,9 +56,20 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IConnectionMultiplexer>(sp =>
         {
             var options = configuration.GetSection(RedisOptions.SectionName).Get<RedisOptions>() ?? new RedisOptions();
-            return ConnectionMultiplexer.Connect(options.ConnectionString);
+            try
+            {
+                var configOptions = ConfigurationOptions.Parse(options.ConnectionString);
+                configOptions.AbortOnConnectFail = false;
+                configOptions.ConnectTimeout = 2000;
+                return ConnectionMultiplexer.Connect(configOptions);
+            }
+            catch
+            {
+                // Redis 不可用时返回 null (调用方会回退到内存缓存)
+                return null!;
+            }
         });
-        services.AddSingleton<ICacheService, RedisCacheService>();
+        services.AddSingleton<ICacheService, FallbackCacheService>();
 
         // 仓储
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));

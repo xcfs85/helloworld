@@ -92,3 +92,10 @@ public class TopicDto
     public int PostCount { get; set; }
     public bool IsHot { get; set; }
 }
+
+public class CreateTopicRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? CoverUrl { get; set; }
+}

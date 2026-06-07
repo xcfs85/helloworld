@@ -10,6 +10,7 @@ using Pindou.Infrastructure.Options;
 using Pindou.Infrastructure.Repositories;
 using Pindou.Infrastructure.Services.Auth;
 using System.Linq.Expressions;
+using System.Security.Claims;
 
 namespace Pindou.Tests.Services;
 
@@ -103,7 +104,7 @@ public class AuthServiceTests
         _cacheMock.Setup(c => c.RemoveAsync(It.IsAny<string>())).ReturnsAsync(true);
         _userRepoMock.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<User, bool>>>())).ReturnsAsync(user);
         _userRepoMock.Setup(r => r.UpdateAsync(It.IsAny<User>())).ReturnsAsync(true);
-        _userRepoMock.Setup(r => r.InsertAsync(It.IsAny<Token>())).ReturnsAsync("t1");
+        _tokenRepoMock.Setup(r => r.InsertAsync(It.IsAny<Token>())).ReturnsAsync("t1");
 
         var result = await _authService.PhoneLoginAsync(request);
 
@@ -291,8 +292,8 @@ public class AuthServiceTests
     {
         var claims = new[]
         {
-            new System.Security.Claims.Claim(System.Security.Claims.JwtRegisteredClaimNames.Sub, userId),
-            new System.Security.Claims.Claim(System.Security.Claims.JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim("sub", userId),
+            new Claim("jti", Guid.NewGuid().ToString()),
             new System.Security.Claims.Claim("token_type", "refresh")
         };
         var key = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
