@@ -8,6 +8,7 @@ using Pindou.Domain.Entities.Member;
 using Pindou.Domain.Entities.User;
 using Pindou.Infrastructure.Repositories;
 using SqlSugar;
+using UserEntity = Pindou.Domain.Entities.User.User;
 
 namespace Pindou.Infrastructure.Services.Statistics;
 
@@ -19,7 +20,7 @@ public class StatisticsService : IStatisticsService
     private readonly IRepository<Comment> _commentRepo;
     private readonly IRepository<Like> _likeRepo;
     private readonly IRepository<Order> _orderRepo;
-    private readonly IRepository<User> _userRepo;
+    private readonly IRepository<UserEntity> _userRepo;
 
     public StatisticsService(
         IRepository<DailyStats> statsRepo,
@@ -28,7 +29,7 @@ public class StatisticsService : IStatisticsService
         IRepository<Comment> commentRepo,
         IRepository<Like> likeRepo,
         IRepository<Order> orderRepo,
-        IRepository<User> userRepo)
+        IRepository<UserEntity> userRepo)
     {
         _statsRepo = statsRepo;
         _diagramRepo = diagramRepo;

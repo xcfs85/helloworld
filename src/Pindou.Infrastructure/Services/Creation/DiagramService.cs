@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 using Pindou.Application.Common;
 using Pindou.Application.DTOs.Creation;
 using Pindou.Application.Interfaces.Creation;
@@ -41,7 +42,7 @@ public class DiagramService : IDiagramService
             UserId = userId,
             Status = "pending",
             SourceImageUrl = request.SourceImageUrl,
-            Params = System.Text.Json.JsonSerializer.Serialize(request),
+            Params = JsonSerializer.Serialize(request),
             IsSync = request.IsSync
         };
         await _taskRepo.InsertAsync(task);
@@ -84,7 +85,7 @@ public class DiagramService : IDiagramService
             UserId = userId,
             Status = "pending",
             SourceImageUrl = request.SourceImageUrl,
-            Params = System.Text.Json.JsonSerializer.Serialize(request),
+            Params = JsonSerializer.Serialize(request),
             IsSync = true
         };
         await _taskRepo.InsertAsync(task);
@@ -143,7 +144,7 @@ public class DiagramService : IDiagramService
             await _taskRepo.UpdateAsync(task);
 
             // 调用AI生图
-            var request = System.Text.Json.JsonSerializer.Deserialize<CreateDiagramRequest>(task.Params);
+            var request = JsonSerializer.Deserialize<CreateDiagramRequest>(task.Params);
             var result = await _aiService.GenerateSyncAsync(new AiGenerationRequest
             {
                 UserId = task.UserId,
@@ -182,7 +183,7 @@ public class DiagramService : IDiagramService
                 Style = request?.Style ?? "pixel",
                 TotalColors = result.ColorCount,
                 TotalBeads = result.BeadCount,
-                Tags = request?.Tags != null ? System.Text.Json.JsonSerializer.Serialize(request.Tags) : null,
+                Tags = request?.Tags != null ? JsonSerializer.Serialize(request.Tags) : null,
                 SourceType = request?.TemplateId != null ? "template" : "create",
                 TemplateId = request?.TemplateId
             };

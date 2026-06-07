@@ -13,6 +13,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using SqlSugar;
+using ICacheService = Pindou.Infrastructure.Cache.ICacheService;
 
 namespace Pindou.Infrastructure.Services.Admin;
 
@@ -112,7 +113,7 @@ public class AdminAuthService : IAdminAuthService
         if (principal == null)
             throw new BizException("refresh_token无效", 2001);
 
-        var userIdClaim = principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? principal.FindFirstValue("sub");
+        var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? principal.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var adminId))
             throw new BizException("refresh_token无效", 2001);
 
@@ -208,7 +209,7 @@ public class AdminAuthService : IAdminAuthService
                 IssuerSigningKey = key,
                 ClockSkew = TimeSpan.FromSeconds(30)
             }, out SecurityToken validatedToken);
-            return new ClaimsPrincipal((JwtSecurityToken)validatedToken);
+            return new ClaimsPrincipal(new ClaimsIdentity(((JwtSecurityToken)validatedToken).Claims));
         }
         catch
         {

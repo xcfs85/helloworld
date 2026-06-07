@@ -65,8 +65,7 @@ public class Repository<TEntity> : IRepository<TEntity> where TEntity : class, n
     public async Task<List<TEntity>> GetListAsync(Expression<Func<TEntity, bool>> where, string orderBy, bool isDesc = true)
     {
         var query = Db.Queryable<TEntity>().Where(where);
-        if (isDesc) query = query.OrderBy(orderBy, OrderByType.Desc);
-        else query = query.OrderBy(orderBy, OrderByType.Asc);
+        query = query.OrderBy(orderBy + (isDesc ? " desc" : " asc"));
         return await query.ToListAsync();
     }
 
@@ -109,7 +108,7 @@ public class Repository<TEntity> : IRepository<TEntity> where TEntity : class, n
 
     public async Task<List<object>> InsertRangeAsync(List<TEntity> entities)
     {
-        return await Db.Insertable(entities).ExecuteReturnSnowflakeIdListAsync();
+        return (await Db.Insertable(entities).ExecuteReturnSnowflakeIdListAsync()).Select(id => (object)id).ToList();
     }
 
     public async Task<bool> UpdateAsync(TEntity entity)

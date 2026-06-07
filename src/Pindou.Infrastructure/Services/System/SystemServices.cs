@@ -7,6 +7,7 @@ using Pindou.Domain.Entities.System;
 using Pindou.Infrastructure.Cache;
 using Pindou.Infrastructure.Repositories;
 using SqlSugar;
+using ICacheService = Pindou.Infrastructure.Cache.ICacheService;
 
 namespace Pindou.Infrastructure.Services.System;
 
@@ -223,7 +224,7 @@ public class ContentReviewService : IContentReviewService
         return true;
     }
 
-    public async Task<PagedResult<DTOs.Community.PostDto>> GetPendingPostsAsync(PageRequest request)
+    public async Task<PagedResult<Pindou.Application.DTOs.Community.PostDto>> GetPendingPostsAsync(PageRequest request)
     {
         var (list, total) = await _postRepo.GetPagedAsync(
             p => p.Status == "active" && p.ReviewStatus == "pending",
@@ -232,23 +233,23 @@ public class ContentReviewService : IContentReviewService
             p => p.PublishTime,
             true);
 
-        var result = new PagedResult<DTOs.Community.PostDto>
+        var result = new PagedResult<Pindou.Application.DTOs.Community.PostDto>
         {
             Page = request.Page,
             Size = request.Size,
             Total = total,
-            List = new List<DTOs.Community.PostDto>()
+            List = new List<Pindou.Application.DTOs.Community.PostDto>()
         };
 
         foreach (var post in list)
         {
-            result.List.Add(new DTOs.Community.PostDto
+            result.List.Add(new Pindou.Application.DTOs.Community.PostDto
             {
                 Id = post.Id,
                 Type = post.Type,
                 Title = post.Title,
                 Content = post.Content,
-                Media = new List<DTOs.Community.MediaItem>(),
+                Media = new List<Pindou.Application.DTOs.Community.MediaItem>(),
                 DiagramId = post.DiagramId,
                 LikeCount = post.LikeCount,
                 CommentCount = post.CommentCount,
@@ -256,7 +257,7 @@ public class ContentReviewService : IContentReviewService
                 ViewCount = post.ViewCount,
                 ReviewStatus = post.ReviewStatus,
                 PublishTime = post.PublishTime,
-                Author = new DTOs.Community.AuthorBrief(),
+                Author = new Pindou.Application.DTOs.Community.AuthorBrief(),
                 IsLiked = false,
                 IsFavorited = false
             });

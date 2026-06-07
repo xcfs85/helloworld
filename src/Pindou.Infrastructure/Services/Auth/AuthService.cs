@@ -6,8 +6,11 @@ using Pindou.Application.DTOs.Auth;
 using Pindou.Application.Interfaces.Auth;
 using Pindou.Domain.Entities.User;
 using Pindou.Infrastructure.Cache;
+using Pindou.Infrastructure.ExternalServices.Sms;
 using Pindou.Infrastructure.Options;
 using Pindou.Infrastructure.Repositories;
+using UserEntity = Pindou.Domain.Entities.User.User;
+using ICacheService = Pindou.Infrastructure.Cache.ICacheService;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -20,7 +23,7 @@ namespace Pindou.Infrastructure.Services.Auth;
 /// </summary>
 public class AuthService : IAuthService
 {
-    private readonly IRepository<User> _userRepo;
+    private readonly IRepository<UserEntity> _userRepo;
     private readonly IRepository<Token> _tokenRepo;
     private readonly ICacheService _cache;
     private readonly JwtOptions _jwtOptions;
@@ -28,7 +31,7 @@ public class AuthService : IAuthService
     private readonly ISmsService _smsService;
 
     public AuthService(
-        IRepository<User> userRepo,
+        IRepository<UserEntity> userRepo,
         IRepository<Token> tokenRepo,
         ICacheService cache,
         IOptions<JwtOptions> jwtOptions,
@@ -94,7 +97,7 @@ public class AuthService : IAuthService
         if (user == null)
         {
             // 自动注册
-            user = new User
+            user = new UserEntity
             {
                 Phone = request.Phone,
                 Nickname = $"拼豆用户{request.Phone[^4..]}",
@@ -127,7 +130,7 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponse> GuestLoginAsync(GuestLoginRequest request, string? ip = null)
     {
-        var user = new User
+        var user = new UserEntity
         {
             Nickname = $"游客{DateTime.Now:HHmmss}",
             Status = "active"
@@ -143,7 +146,7 @@ public class AuthService : IAuthService
         if (principal == null)
             throw new BizException("refresh_token无效", 2001);
 
-        var userId = principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? principal.FindFirstValue("sub");
+        var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? principal.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userId))
             throw new BizException("refresh_token无效", 2001);
 
@@ -180,7 +183,7 @@ public class AuthService : IAuthService
     }
 
     #region 私有方法
-    private async Task<LoginResponse> BuildLoginResponseAsync(User user, string? deviceId)
+    private async Task<LoginResponse> BuildLoginResponseAsync(UserEntity user, string? deviceId)
     {
         var accessToken = GenerateAccessToken(user);
         var refreshToken = GenerateRefreshToken(user);
@@ -213,12 +216,12 @@ public class AuthService : IAuthService
         };
     }
 
-    private string GenerateAccessToken(User user)
+    private string GenerateAccessToken(UserEntity user)
     {
         return GenerateToken(user.Id, _jwtOptions.AccessTokenExpireMinutes, "access");
     }
 
-    private string GenerateRefreshToken(User user)
+    private string GenerateRefreshToken(UserEntity user)
     {
         return GenerateToken(user.Id, _jwtOptions.RefreshTokenExpireMinutes, "refresh");
     }
@@ -260,7 +263,7 @@ public class AuthService : IAuthService
                 IssuerSigningKey = key,
                 ClockSkew = TimeSpan.FromSeconds(30)
             }, out SecurityToken validatedToken);
-            return new ClaimsPrincipal((JwtSecurityToken)validatedToken);
+            return new ClaimsPrincipal(new ClaimsIdentity(((JwtSecurityToken)validatedToken).Claims));
         }
         catch
         {

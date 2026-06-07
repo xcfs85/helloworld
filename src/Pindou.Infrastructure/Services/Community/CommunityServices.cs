@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using Pindou.Application.Common;
 using Pindou.Application.DTOs.Community;
@@ -7,6 +8,7 @@ using Pindou.Domain.Entities.Community;
 using Pindou.Domain.Entities.User;
 using Pindou.Infrastructure.Repositories;
 using SqlSugar;
+using UserEntity = Pindou.Domain.Entities.User.User;
 
 namespace Pindou.Infrastructure.Services.Community;
 
@@ -16,7 +18,7 @@ public class PostService : IPostService
     private readonly IRepository<Comment> _commentRepo;
     private readonly IRepository<Like> _likeRepo;
     private readonly IRepository<Favorite> _favoriteRepo;
-    private readonly IRepository<User> _userRepo;
+    private readonly IRepository<UserEntity> _userRepo;
     private readonly IContentReviewService _contentReview;
 
     public PostService(
@@ -24,7 +26,7 @@ public class PostService : IPostService
         IRepository<Comment> commentRepo,
         IRepository<Like> likeRepo,
         IRepository<Favorite> favoriteRepo,
-        IRepository<User> userRepo,
+        IRepository<UserEntity> userRepo,
         IContentReviewService contentReview)
     {
         _postRepo = postRepo;
@@ -434,10 +436,10 @@ public class PostService : IPostService
 
 public class FollowService : IFollowService
 {
+    private readonly IRepository<UserEntity> _userRepo;
     private readonly IRepository<Follow> _followRepo;
-    private readonly IRepository<User> _userRepo;
 
-    public FollowService(IRepository<Follow> followRepo, IRepository<User> userRepo)
+    public FollowService(IRepository<Follow> followRepo, IRepository<UserEntity> userRepo)
     {
         _followRepo = followRepo;
         _userRepo = userRepo;
@@ -468,7 +470,7 @@ public class FollowService : IFollowService
         return true;
     }
 
-    public async Task<PagedResult<DTOs.User.UserListDto>> GetFollowListAsync(string userId, PageRequest request)
+    public async Task<PagedResult<Pindou.Application.DTOs.User.UserListDto>> GetFollowListAsync(string userId, PageRequest request)
     {
         var (follows, total) = await _followRepo.GetPagedAsync(
             f => f.UserId == userId,
@@ -477,12 +479,12 @@ public class FollowService : IFollowService
             f => f.CreateTime,
             true);
 
-        var result = new PagedResult<DTOs.User.UserListDto>
+        var result = new PagedResult<Pindou.Application.DTOs.User.UserListDto>
         {
             Page = request.Page,
             Size = request.Size,
             Total = total,
-            List = new List<DTOs.User.UserListDto>()
+            List = new List<Pindou.Application.DTOs.User.UserListDto>()
         };
 
         foreach (var follow in follows)
@@ -490,7 +492,7 @@ public class FollowService : IFollowService
             var user = await _userRepo.GetByIdAsync(follow.FollowUserId);
             if (user != null)
             {
-                result.List.Add(new DTOs.User.UserListDto
+                result.List.Add(new Pindou.Application.DTOs.User.UserListDto
                 {
                     Id = user.Id,
                     Nickname = user.Nickname,
@@ -507,7 +509,7 @@ public class FollowService : IFollowService
         return result;
     }
 
-    public async Task<PagedResult<DTOs.User.UserListDto>> GetFansListAsync(string userId, PageRequest request)
+    public async Task<PagedResult<Pindou.Application.DTOs.User.UserListDto>> GetFansListAsync(string userId, PageRequest request)
     {
         var (follows, total) = await _followRepo.GetPagedAsync(
             f => f.FollowUserId == userId,
@@ -516,12 +518,12 @@ public class FollowService : IFollowService
             f => f.CreateTime,
             true);
 
-        var result = new PagedResult<DTOs.User.UserListDto>
+        var result = new PagedResult<Pindou.Application.DTOs.User.UserListDto>
         {
             Page = request.Page,
             Size = request.Size,
             Total = total,
-            List = new List<DTOs.User.UserListDto>()
+            List = new List<Pindou.Application.DTOs.User.UserListDto>()
         };
 
         foreach (var follow in follows)
@@ -529,7 +531,7 @@ public class FollowService : IFollowService
             var user = await _userRepo.GetByIdAsync(follow.UserId);
             if (user != null)
             {
-                result.List.Add(new DTOs.User.UserListDto
+                result.List.Add(new Pindou.Application.DTOs.User.UserListDto
                 {
                     Id = user.Id,
                     Nickname = user.Nickname,
@@ -551,14 +553,14 @@ public class TopicService : ITopicService
 {
     private readonly IRepository<Topic> _topicRepo;
     private readonly IRepository<Post> _postRepo;
-    private readonly IRepository<User> _userRepo;
+    private readonly IRepository<UserEntity> _userRepo;
     private readonly IRepository<Like> _likeRepo;
     private readonly IRepository<Favorite> _favoriteRepo;
 
     public TopicService(
         IRepository<Topic> topicRepo,
         IRepository<Post> postRepo,
-        IRepository<User> userRepo,
+        IRepository<UserEntity> userRepo,
         IRepository<Like> likeRepo,
         IRepository<Favorite> favoriteRepo)
     {

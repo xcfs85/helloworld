@@ -6,21 +6,23 @@ using Pindou.Domain.Entities.Member;
 using Pindou.Domain.Entities.User;
 using Pindou.Infrastructure.Repositories;
 using SqlSugar;
+using UserEntity = Pindou.Domain.Entities.User.User;
+using MemberEntity = Pindou.Domain.Entities.Member.Member;
 
 namespace Pindou.Infrastructure.Services.Member;
 
 public class MemberService : IMemberService
 {
-    private readonly IRepository<Member> _memberRepo;
+    private readonly IRepository<MemberEntity> _memberRepo;
     private readonly IRepository<Order> _orderRepo;
     private readonly IRepository<MemberProduct> _productRepo;
-    private readonly IRepository<User> _userRepo;
+    private readonly IRepository<UserEntity> _userRepo;
 
     public MemberService(
-        IRepository<Member> memberRepo,
+        IRepository<MemberEntity> memberRepo,
         IRepository<Order> orderRepo,
         IRepository<MemberProduct> productRepo,
-        IRepository<User> userRepo)
+        IRepository<UserEntity> userRepo)
     {
         _memberRepo = memberRepo;
         _orderRepo = orderRepo;
@@ -108,7 +110,7 @@ public class MemberService : IMemberService
                 var startTime = user.IsMember && user.MemberExpireTime > now ? user.MemberExpireTime.Value : now;
                 var expireTime = startTime.AddDays(product.DurationDays);
 
-                await _memberRepo.InsertAsync(new Member
+                await _memberRepo.InsertAsync(new MemberEntity
                 {
                     UserId = userId,
                     MemberType = product.Grade,
@@ -145,7 +147,7 @@ public class MemberService : IMemberService
         var startTime = user.IsMember && user.MemberExpireTime > now ? user.MemberExpireTime.Value : now;
         var expireTime = startTime.AddDays(request.DurationDays);
 
-        await _memberRepo.InsertAsync(new Member
+        await _memberRepo.InsertAsync(new MemberEntity
         {
             UserId = userId,
             MemberType = request.MemberType,
@@ -257,13 +259,13 @@ public class MemberService : IMemberService
 
 public class UserMemberService : IUserMemberService
 {
-    private readonly IRepository<User> _userRepo;
-    private readonly IRepository<Member> _memberRepo;
+    private readonly IRepository<UserEntity> _userRepo;
+    private readonly IRepository<MemberEntity> _memberRepo;
     private readonly IRepository<MemberProduct> _productRepo;
 
     public UserMemberService(
-        IRepository<User> userRepo,
-        IRepository<Member> memberRepo,
+        IRepository<UserEntity> userRepo,
+        IRepository<MemberEntity> memberRepo,
         IRepository<MemberProduct> productRepo)
     {
         _userRepo = userRepo;
@@ -301,7 +303,7 @@ public class UserMemberService : IUserMemberService
     {
         var records = await _memberRepo.GetListAsync(
             m => m.UserId == userId,
-            nameof(Member.CreateTime),
+            nameof(MemberEntity.CreateTime),
             true);
 
         return records.Select(r => new MemberRecordDto

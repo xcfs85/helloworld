@@ -34,7 +34,7 @@ public class PindouDbContext
                 EntityService = (c, p) =>
                 {
                     // 统一处理
-                    if (typeof(ISoftDelete).IsAssignableFrom(c))
+                    if (typeof(ISoftDelete).IsAssignableFrom(c.PropertyType))
                     {
                         // 软删除字段
                     }

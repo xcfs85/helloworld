@@ -1,4 +1,5 @@
 using Pindou.Application.Common;
+using Pindou.Application.DTOs.Community;
 using Pindou.Application.DTOs.Messaging;
 using Pindou.Application.DTOs.Operation;
 

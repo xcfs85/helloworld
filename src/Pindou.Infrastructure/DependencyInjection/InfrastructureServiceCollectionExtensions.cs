@@ -6,7 +6,6 @@ using Pindou.Application.Interfaces.Community;
 using Pindou.Application.Interfaces.Creation;
 using Pindou.Application.Interfaces.Member;
 using Pindou.Application.Interfaces.Messaging;
-using Pindou.Application.Interfaces.Operation;
 using Pindou.Application.Interfaces.Statistics;
 using Pindou.Application.Interfaces.System;
 using Pindou.Application.Interfaces.Template;

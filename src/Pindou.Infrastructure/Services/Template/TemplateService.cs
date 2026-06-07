@@ -6,19 +6,20 @@ using Pindou.Domain.Entities.Template;
 using Pindou.Domain.Entities.Creation;
 using Pindou.Infrastructure.Repositories;
 using SqlSugar;
+using TemplateEntity = Pindou.Domain.Entities.Template.Template;
 
 namespace Pindou.Infrastructure.Services.Template;
 
 public class TemplateService : ITemplateService
 {
-    private readonly IRepository<Template> _templateRepo;
+    private readonly IRepository<TemplateEntity> _templateRepo;
     private readonly IRepository<TemplateCategory> _categoryRepo;
     private readonly IRepository<TemplateTag> _tagRepo;
     private readonly IRepository<TemplateFavorite> _favoriteRepo;
     private readonly IRepository<Diagram> _diagramRepo;
 
     public TemplateService(
-        IRepository<Template> templateRepo,
+        IRepository<TemplateEntity> templateRepo,
         IRepository<TemplateCategory> categoryRepo,
         IRepository<TemplateTag> tagRepo,
         IRepository<TemplateFavorite> favoriteRepo,
@@ -33,7 +34,7 @@ public class TemplateService : ITemplateService
 
     public async Task<PagedResult<TemplateDto>> GetTemplatesAsync(TemplateQuery query)
     {
-        var exp = Expressionable.Create<Template>().And(t => t.Status == "active" && t.ReviewStatus == "approved");
+        var exp = Expressionable.Create<TemplateEntity>().And(t => t.Status == "active" && t.ReviewStatus == "approved");
 
         if (!string.IsNullOrWhiteSpace(query.CategoryId))
             exp.And(t => t.CategoryId == query.CategoryId);

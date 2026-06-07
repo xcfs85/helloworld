@@ -1,4 +1,5 @@
 using Pindou.Domain.Entities.Admin;
+using Pindou.Domain.Entities.Member;
 using Pindou.Domain.Entities.System;
 using Pindou.Domain.Entities.Template;
 using Pindou.Infrastructure.Repositories;

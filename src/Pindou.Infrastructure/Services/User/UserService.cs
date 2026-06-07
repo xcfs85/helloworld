@@ -7,18 +7,20 @@ using Pindou.Domain.Entities.Community;
 using Pindou.Infrastructure.Cache;
 using Pindou.Infrastructure.Repositories;
 using SqlSugar;
+using UserEntity = Pindou.Domain.Entities.User.User;
+using ICacheService = Pindou.Infrastructure.Cache.ICacheService;
 
 namespace Pindou.Infrastructure.Services.User;
 
 public class UserService : IUserService
 {
-    private readonly IRepository<User> _userRepo;
+    private readonly IRepository<UserEntity> _userRepo;
     private readonly IRepository<Diagram> _diagramRepo;
     private readonly IRepository<Post> _postRepo;
     private readonly ICacheService _cache;
 
     public UserService(
-        IRepository<User> userRepo,
+        IRepository<UserEntity> userRepo,
         IRepository<Diagram> diagramRepo,
         IRepository<Post> postRepo,
         ICacheService cache)
@@ -29,12 +31,12 @@ public class UserService : IUserService
         _cache = cache;
     }
 
-    public async Task<DTOs.Auth.UserInfo> GetUserInfoAsync(string userId)
+    public async Task<Pindou.Application.DTOs.Auth.UserInfo> GetUserInfoAsync(string userId)
     {
         var user = await _userRepo.GetByIdAsync(userId);
         if (user == null) throw new BizException("用户不存在", ErrorCodes.NotFound);
 
-        return new DTOs.Auth.UserInfo
+        return new Pindou.Application.DTOs.Auth.UserInfo
         {
             Id = user.Id,
             Nickname = user.Nickname,
@@ -46,7 +48,7 @@ public class UserService : IUserService
         };
     }
 
-    public async Task<DTOs.Auth.UserInfo> UpdateUserInfoAsync(string userId, UpdateUserRequest request)
+    public async Task<Pindou.Application.DTOs.Auth.UserInfo> UpdateUserInfoAsync(string userId, UpdateUserRequest request)
     {
         var user = await _userRepo.GetByIdAsync(userId);
         if (user == null) throw new BizException("用户不存在", ErrorCodes.NotFound);
@@ -65,7 +67,7 @@ public class UserService : IUserService
         user.UpdateTime = DateTime.Now;
         await _userRepo.UpdateAsync(user);
 
-        return new DTOs.Auth.UserInfo
+        return new Pindou.Application.DTOs.Auth.UserInfo
         {
             Id = user.Id,
             Nickname = user.Nickname,
@@ -79,7 +81,7 @@ public class UserService : IUserService
 
     public async Task<PagedResult<UserListDto>> GetListAsync(UserListQuery query)
     {
-        var exp = Expressionable.Create<User>();
+        var exp = Expressionable.Create<UserEntity>();
 
         if (query.IsMember.HasValue)
             exp.And(u => u.IsMember == query.IsMember.Value);
