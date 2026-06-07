@@ -12,6 +12,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using SqlSugar;
 
 namespace Pindou.Infrastructure.Services.Admin;
 
@@ -41,7 +42,6 @@ public class AdminAuthService : IAdminAuthService
         var code = Random.Shared.Next(100000, 999999).ToString();
         var key = Guid.NewGuid().ToString("N");
         await _cache.SetStringAsync($"admin:captcha:{key}", code, TimeSpan.FromMinutes(5));
-        // 简化：返回key，验证码图片由前端渲染或单独API生成
         return key;
     }
 
@@ -51,7 +51,6 @@ public class AdminAuthService : IAdminAuthService
         if (admin == null) throw new BizException("用户名或密码错误", 2010);
         if (admin.Status == 0) throw new BizException("账号已禁用", 2011);
 
-        // 错误次数
         var errKey = $"admin:login:err:{admin.Id}";
         var errCount = await _cache.GetAsync<int>(errKey);
         if (errCount >= 3)
@@ -63,14 +62,12 @@ public class AdminAuthService : IAdminAuthService
                 throw new BizException("验证码错误", 2013);
         }
 
-        // 密码校验 - BCrypt
         if (!BCrypt.Net.BCrypt.Verify(request.Password, admin.Password))
         {
             await _cache.IncrementAsync(errKey, 1, TimeSpan.FromMinutes(15));
             throw new BizException("用户名或密码错误", 2010);
         }
 
-        // 清理错误次数
         await _cache.RemoveAsync(errKey);
 
         admin.LastLoginTime = DateTime.Now;
@@ -106,12 +103,72 @@ public class AdminAuthService : IAdminAuthService
 
     public async Task LogoutAsync(long adminId)
     {
-        // Token撤销（黑名单）
         await _cache.SetStringAsync($"admin:token:revoked:{adminId}", "1", TimeSpan.FromDays(30));
     }
 
-    public Task<AdminLoginResponse> RefreshTokenAsync(string refreshToken) { throw new NotImplementedException(); }
-    public Task<AdminUserInfo> GetCurrentUserAsync(long adminId) { throw new NotImplementedException(); }
+    public async Task<AdminLoginResponse> RefreshTokenAsync(string refreshToken)
+    {
+        var principal = ValidateToken(refreshToken);
+        if (principal == null)
+            throw new BizException("refresh_token无效", 2001);
+
+        var userIdClaim = principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? principal.FindFirstValue("sub");
+        if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var adminId))
+            throw new BizException("refresh_token无效", 2001);
+
+        var admin = await _adminRepo.GetByIdAsync(adminId);
+        if (admin == null || admin.Status == 0)
+            throw new BizException("用户不存在或已禁用", 4001);
+
+        var role = await _roleRepo.GetByIdAsync(admin.RoleId);
+        var permissions = string.IsNullOrEmpty(role?.Permissions)
+            ? new List<string>()
+            : JsonSerializer.Deserialize<List<string>>(role.Permissions);
+
+        var token = GenerateToken(admin.Id, admin.Username, admin.RoleId, "admin", 60 * 24 * 7);
+        var newRefreshToken = GenerateToken(admin.Id, admin.Username, admin.RoleId, "admin_refresh", 60 * 24 * 30);
+
+        return new AdminLoginResponse
+        {
+            Token = token,
+            RefreshToken = newRefreshToken,
+            ExpireTime = DateTime.Now.AddMinutes(60 * 24 * 7),
+            User = new AdminUserInfo
+            {
+                Id = admin.Id,
+                Username = admin.Username,
+                Nickname = admin.Nickname,
+                RoleId = admin.RoleId,
+                RoleName = role?.Name,
+                Permissions = permissions ?? new(),
+                LastLoginTime = admin.LastLoginTime,
+                LastLoginIp = admin.LastLoginIp
+            }
+        };
+    }
+
+    public async Task<AdminUserInfo> GetCurrentUserAsync(long adminId)
+    {
+        var admin = await _adminRepo.GetByIdAsync(adminId);
+        if (admin == null) throw new BizException("用户不存在", 4001);
+
+        var role = await _roleRepo.GetByIdAsync(admin.RoleId);
+        var permissions = string.IsNullOrEmpty(role?.Permissions)
+            ? new List<string>()
+            : JsonSerializer.Deserialize<List<string>>(role.Permissions);
+
+        return new AdminUserInfo
+        {
+            Id = admin.Id,
+            Username = admin.Username,
+            Nickname = admin.Nickname,
+            RoleId = admin.RoleId,
+            RoleName = role?.Name,
+            Permissions = permissions ?? new(),
+            LastLoginTime = admin.LastLoginTime,
+            LastLoginIp = admin.LastLoginIp
+        };
+    }
 
     private string GenerateToken(long userId, string username, long roleId, string tokenType, int expireMinutes)
     {
@@ -133,15 +190,108 @@ public class AdminAuthService : IAdminAuthService
             signingCredentials: creds);
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    private ClaimsPrincipal? ValidateToken(string token)
+    {
+        try
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Secret));
+            tokenHandler.ValidateToken(token, new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = _jwt.Issuer,
+                ValidAudience = _jwt.Audience,
+                IssuerSigningKey = key,
+                ClockSkew = TimeSpan.FromSeconds(30)
+            }, out SecurityToken validatedToken);
+            return new ClaimsPrincipal((JwtSecurityToken)validatedToken);
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
 
 public class AdminUserService : IAdminUserService
 {
     private readonly IRepository<AdminUser> _adminRepo;
-    public AdminUserService(IRepository<AdminUser> adminRepo) { _adminRepo = adminRepo; }
+    private readonly IRepository<Role> _roleRepo;
 
-    public Task<PagedResult<AdminUserListDto>> GetListAsync(AdminUserQuery query) { throw new NotImplementedException(); }
-    public Task<AdminUserDetailDto> GetDetailAsync(long id) { throw new NotImplementedException(); }
+    public AdminUserService(IRepository<AdminUser> adminRepo, IRepository<Role> roleRepo)
+    {
+        _adminRepo = adminRepo;
+        _roleRepo = roleRepo;
+    }
+
+    public async Task<PagedResult<AdminUserListDto>> GetListAsync(AdminUserQuery query)
+    {
+        var exp = Expressionable.Create<AdminUser>();
+        if (query.RoleId.HasValue)
+            exp.And(a => a.RoleId == query.RoleId.Value);
+        if (query.Status.HasValue)
+            exp.And(a => a.Status == query.Status.Value);
+
+        var (list, total) = await _adminRepo.GetPagedAsync(
+            exp.ToExpression(),
+            query.Page,
+            query.Size,
+            a => a.CreateTime,
+            true);
+
+        var result = new PagedResult<AdminUserListDto>
+        {
+            Page = query.Page,
+            Size = query.Size,
+            Total = total,
+            List = new List<AdminUserListDto>()
+        };
+
+        foreach (var admin in list)
+        {
+            var role = await _roleRepo.GetByIdAsync(admin.RoleId);
+            result.List.Add(new AdminUserListDto
+            {
+                Id = admin.Id,
+                Username = admin.Username,
+                Nickname = admin.Nickname,
+                RoleId = admin.RoleId,
+                RoleName = role?.Name,
+                Status = admin.Status,
+                LastLoginTime = admin.LastLoginTime,
+                LastLoginIp = admin.LastLoginIp,
+                CreateTime = admin.CreateTime
+            });
+        }
+
+        return result;
+    }
+
+    public async Task<AdminUserDetailDto> GetDetailAsync(long id)
+    {
+        var admin = await _adminRepo.GetByIdAsync(id);
+        if (admin == null) throw new BizException("管理员不存在", ErrorCodes.NotFound);
+
+        var role = await _roleRepo.GetByIdAsync(admin.RoleId);
+        return new AdminUserDetailDto
+        {
+            Id = admin.Id,
+            Username = admin.Username,
+            Nickname = admin.Nickname,
+            RoleId = admin.RoleId,
+            RoleName = role?.Name,
+            Status = admin.Status,
+            LastLoginTime = admin.LastLoginTime,
+            LastLoginIp = admin.LastLoginIp,
+            CreateTime = admin.CreateTime,
+            UpdateTime = admin.UpdateTime
+        };
+    }
+
     public async Task<long> CreateAsync(CreateAdminUserRequest request)
     {
         if (await _adminRepo.AnyAsync(a => a.Username == request.Username))
@@ -157,34 +307,213 @@ public class AdminUserService : IAdminUserService
         await _adminRepo.InsertAsync(admin);
         return admin.Id;
     }
-    public Task<bool> UpdateAsync(long id, UpdateAdminUserRequest request) { throw new NotImplementedException(); }
-    public Task<bool> DeleteAsync(long id) { throw new NotImplementedException(); }
-    public Task<bool> ResetPasswordAsync(long id, string newPassword)
+
+    public async Task<bool> UpdateAsync(long id, UpdateAdminUserRequest request)
     {
-        throw new NotImplementedException();
+        var admin = await _adminRepo.GetByIdAsync(id);
+        if (admin == null) throw new BizException("管理员不存在", ErrorCodes.NotFound);
+
+        if (request.Nickname != null) admin.Nickname = request.Nickname;
+        if (request.RoleId.HasValue) admin.RoleId = request.RoleId.Value;
+        if (request.Status.HasValue) admin.Status = request.Status.Value;
+        admin.UpdateTime = DateTime.Now;
+        return await _adminRepo.UpdateAsync(admin);
     }
-    public Task<bool> ChangePasswordAsync(long id, string oldPassword, string newPassword) { throw new NotImplementedException(); }
-    public Task<bool> UpdateStatusAsync(long id, int status) { throw new NotImplementedException(); }
+
+    public async Task<bool> DeleteAsync(long id)
+    {
+        var admin = await _adminRepo.GetByIdAsync(id);
+        if (admin == null) throw new BizException("管理员不存在", ErrorCodes.NotFound);
+
+        return await _adminRepo.DeleteAsync(id);
+    }
+
+    public async Task<bool> ResetPasswordAsync(long id, string newPassword)
+    {
+        var admin = await _adminRepo.GetByIdAsync(id);
+        if (admin == null) throw new BizException("管理员不存在", ErrorCodes.NotFound);
+
+        admin.Password = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        admin.UpdateTime = DateTime.Now;
+        return await _adminRepo.UpdateAsync(admin);
+    }
+
+    public async Task<bool> ChangePasswordAsync(long id, string oldPassword, string newPassword)
+    {
+        var admin = await _adminRepo.GetByIdAsync(id);
+        if (admin == null) throw new BizException("管理员不存在", ErrorCodes.NotFound);
+
+        if (!BCrypt.Net.BCrypt.Verify(oldPassword, admin.Password))
+            throw new BizException("原密码错误", ErrorCodes.ParamError);
+
+        admin.Password = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        admin.UpdateTime = DateTime.Now;
+        return await _adminRepo.UpdateAsync(admin);
+    }
+
+    public async Task<bool> UpdateStatusAsync(long id, int status)
+    {
+        var admin = await _adminRepo.GetByIdAsync(id);
+        if (admin == null) throw new BizException("管理员不存在", ErrorCodes.NotFound);
+
+        admin.Status = status;
+        admin.UpdateTime = DateTime.Now;
+        return await _adminRepo.UpdateAsync(admin);
+    }
 }
 
 public class RoleService : IRoleService
 {
     private readonly IRepository<Role> _roleRepo;
-    public RoleService(IRepository<Role> roleRepo) { _roleRepo = roleRepo; }
 
-    public Task<PagedResult<RoleDto>> GetListAsync(PageRequest request) { throw new NotImplementedException(); }
-    public Task<List<RoleDto>> GetAllAsync() { throw new NotImplementedException(); }
-    public Task<RoleDto> GetDetailAsync(long id) { throw new NotImplementedException(); }
-    public Task<long> CreateAsync(CreateRoleRequest request) { throw new NotImplementedException(); }
-    public Task<bool> UpdateAsync(long id, CreateRoleRequest request) { throw new NotImplementedException(); }
-    public Task<bool> DeleteAsync(long id) { throw new NotImplementedException(); }
-    public Task<List<string>> GetPermissionsAsync(long roleId) { throw new NotImplementedException(); }
+    public RoleService(IRepository<Role> roleRepo)
+    {
+        _roleRepo = roleRepo;
+    }
+
+    public async Task<PagedResult<RoleDto>> GetListAsync(PageRequest request)
+    {
+        var (list, total) = await _roleRepo.GetPagedAsync(
+            null,
+            request.Page,
+            request.Size,
+            r => r.Id,
+            true);
+
+        var result = new PagedResult<RoleDto>
+        {
+            Page = request.Page,
+            Size = request.Size,
+            Total = total,
+            List = new List<RoleDto>()
+        };
+
+        foreach (var role in list)
+        {
+            var perms = new List<string>();
+            if (!string.IsNullOrEmpty(role.Permissions))
+            {
+                try { perms = JsonSerializer.Deserialize<List<string>>(role.Permissions) ?? new(); }
+                catch { }
+            }
+
+            result.List.Add(new RoleDto
+            {
+                Id = role.Id,
+                Name = role.Name,
+                Code = role.Code,
+                Description = role.Description,
+                Permissions = perms,
+                CreateTime = role.CreateTime
+            });
+        }
+
+        return result;
+    }
+
+    public async Task<List<RoleDto>> GetAllAsync()
+    {
+        var roles = await _roleRepo.GetListAsync();
+        return roles.Select(role =>
+        {
+            var perms = new List<string>();
+            if (!string.IsNullOrEmpty(role.Permissions))
+            {
+                try { perms = JsonSerializer.Deserialize<List<string>>(role.Permissions) ?? new(); }
+                catch { }
+            }
+
+            return new RoleDto
+            {
+                Id = role.Id,
+                Name = role.Name,
+                Code = role.Code,
+                Description = role.Description,
+                Permissions = perms,
+                CreateTime = role.CreateTime
+            };
+        }).ToList();
+    }
+
+    public async Task<RoleDto> GetDetailAsync(long id)
+    {
+        var role = await _roleRepo.GetByIdAsync(id);
+        if (role == null) throw new BizException("角色不存在", ErrorCodes.NotFound);
+
+        var perms = new List<string>();
+        if (!string.IsNullOrEmpty(role.Permissions))
+        {
+            try { perms = JsonSerializer.Deserialize<List<string>>(role.Permissions) ?? new(); }
+            catch { }
+        }
+
+        return new RoleDto
+        {
+            Id = role.Id,
+            Name = role.Name,
+            Code = role.Code,
+            Description = role.Description,
+            Permissions = perms,
+            CreateTime = role.CreateTime
+        };
+    }
+
+    public async Task<long> CreateAsync(CreateRoleRequest request)
+    {
+        if (await _roleRepo.AnyAsync(r => r.Code == request.Code))
+            throw new BizException("角色编码已存在", 3001);
+
+        var role = new Role
+        {
+            Name = request.Name,
+            Code = request.Code,
+            Description = request.Description,
+            Permissions = JsonSerializer.Serialize(request.Permissions)
+        };
+        await _roleRepo.InsertAsync(role);
+        return role.Id;
+    }
+
+    public async Task<bool> UpdateAsync(long id, CreateRoleRequest request)
+    {
+        var role = await _roleRepo.GetByIdAsync(id);
+        if (role == null) throw new BizException("角色不存在", ErrorCodes.NotFound);
+
+        role.Name = request.Name;
+        role.Code = request.Code;
+        role.Description = request.Description;
+        role.Permissions = JsonSerializer.Serialize(request.Permissions);
+        role.UpdateTime = DateTime.Now;
+        return await _roleRepo.UpdateAsync(role);
+    }
+
+    public async Task<bool> DeleteAsync(long id)
+    {
+        var role = await _roleRepo.GetByIdAsync(id);
+        if (role == null) throw new BizException("角色不存在", ErrorCodes.NotFound);
+
+        return await _roleRepo.DeleteAsync(id);
+    }
+
+    public async Task<List<string>> GetPermissionsAsync(long roleId)
+    {
+        var role = await _roleRepo.GetByIdAsync(roleId);
+        if (role == null) return new List<string>();
+
+        if (string.IsNullOrEmpty(role.Permissions)) return new List<string>();
+        try { return JsonSerializer.Deserialize<List<string>>(role.Permissions) ?? new(); }
+        catch { return new List<string>(); }
+    }
 }
 
 public class OperationLogService : IOperationLogService
 {
     private readonly IRepository<OperationLog> _logRepo;
-    public OperationLogService(IRepository<OperationLog> logRepo) { _logRepo = logRepo; }
+
+    public OperationLogService(IRepository<OperationLog> logRepo)
+    {
+        _logRepo = logRepo;
+    }
 
     public async Task RecordAsync(long userId, string username, string? nickname, string operation, string? content, string? method, string? @params, string? ip, string? userAgent)
     {
@@ -201,7 +530,65 @@ public class OperationLogService : IOperationLogService
             UserAgent = userAgent
         });
     }
-    public Task<PagedResult<OperationLogDto>> GetListAsync(OperationLogQuery query) { throw new NotImplementedException(); }
-    public Task<bool> DeleteAsync(long id) { throw new NotImplementedException(); }
-    public Task<bool> ClearAsync(DateTime? beforeTime) { throw new NotImplementedException(); }
+
+    public async Task<PagedResult<OperationLogDto>> GetListAsync(OperationLogQuery query)
+    {
+        var exp = Expressionable.Create<OperationLog>();
+        if (query.UserId.HasValue)
+            exp.And(l => l.UserId == query.UserId.Value);
+        if (!string.IsNullOrWhiteSpace(query.Operation))
+            exp.And(l => l.Operation == query.Operation);
+        if (query.StartTime.HasValue)
+            exp.And(l => l.CreateTime >= query.StartTime.Value);
+        if (query.EndTime.HasValue)
+            exp.And(l => l.CreateTime <= query.EndTime.Value);
+
+        var (list, total) = await _logRepo.GetPagedAsync(
+            exp.ToExpression(),
+            query.Page,
+            query.Size,
+            l => l.CreateTime,
+            true);
+
+        var result = new PagedResult<OperationLogDto>
+        {
+            Page = query.Page,
+            Size = query.Size,
+            Total = total,
+            List = new List<OperationLogDto>()
+        };
+
+        foreach (var log in list)
+        {
+            result.List.Add(new OperationLogDto
+            {
+                Id = log.Id,
+                UserId = log.UserId,
+                Username = log.Username,
+                Nickname = log.Nickname,
+                Operation = log.Operation,
+                Content = log.Content,
+                Method = log.Method,
+                Params = log.Params,
+                Ip = log.Ip,
+                CreateTime = log.CreateTime
+            });
+        }
+
+        return result;
+    }
+
+    public async Task<bool> DeleteAsync(long id)
+    {
+        var log = await _logRepo.GetByIdAsync(id);
+        if (log == null) throw new BizException("日志不存在", ErrorCodes.NotFound);
+
+        return await _logRepo.DeleteAsync(id);
+    }
+
+    public async Task<bool> ClearAsync(DateTime? beforeTime)
+    {
+        var cutoff = beforeTime ?? DateTime.Now.AddDays(-30);
+        return await _logRepo.DeleteAsync(l => l.CreateTime < cutoff);
+    }
 }

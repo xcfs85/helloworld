@@ -54,21 +54,6 @@ services:
     networks:
       - pindou-net
 
-  # 后台前端
-  pindou-admin-web:
-    build:
-      context: .
-      dockerfile: src/admin-web/Dockerfile
-    image: pindou-admin-web:latest
-    container_name: pindou-admin-web
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    depends_on:
-      - pindou-admin-api
-    networks:
-      - pindou-net
-
   # Nginx 反向代理
   nginx:
     image: nginx:alpine
@@ -83,7 +68,6 @@ services:
     depends_on:
       - pindou-api
       - pindou-admin-api
-      - pindou-admin-web
     networks:
       - pindou-net
 
