@@ -1,0 +1,1 @@
+import{d as o,I as n,o as r,c as t,u as a}from"./index-BYMaerG0.js";const _=o({__name:"ConfigColor",setup(c){const e=a();return n(()=>{e.replace({name:"config-general"})}),(s,u)=>(r(),t("div"))}});export{_ as default};

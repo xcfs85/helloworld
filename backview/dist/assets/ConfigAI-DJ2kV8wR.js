@@ -1,0 +1,1 @@
+import{d as o,I as n,o as t,c as a,u as r}from"./index-BYMaerG0.js";const _=o({__name:"ConfigAI",setup(c){const e=r();return n(()=>{e.replace({name:"config-general"})}),(s,u)=>(t(),a("div"))}});export{_ as default};

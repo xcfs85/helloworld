@@ -1,0 +1,1 @@
+import{d as n,o,c as r,n as c,O as l,y as p}from"./index-BYMaerG0.js";const i=n({__name:"StatusTag",props:{status:{},variant:{}},setup(a){const s=a,t=p(()=>s.variant||"neutral");return(e,u)=>(o(),r("span",{class:c(["tag",t.value])},[l(e.$slots,"default")],2))}});export{i as _};
