@@ -1,43 +1,87 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { login } from '@/api/auth'
+import { login, getCaptcha } from '@/api/auth'
 
 const router = useRouter()
 const tab = ref<'password' | 'sms' | 'sso'>('password')
 const form = reactive({
-  username: 'admin@pindou',
-  password: 'pindou123',
+  username: 'admin',
+  password: 'admin123',
   captcha: '',
+  captcha_key: '',
   remember: true
 })
 const loading = ref(false)
-const captcha = ref('A7K9')
+const captchaLoading = ref(false)
+const captchaImage = ref('')
+const showCaptcha = ref(false)
+
+// 获取验证码
+async function fetchCaptcha() {
+  captchaLoading.value = true
+  try {
+    const res: any = await getCaptcha()
+    form.captcha_key = res.captcha_key
+    // 实际应该显示图片，后端返回 base64 或 URL
+    // 这里先显示 key 的前6位模拟显示
+    captchaImage.value = res.captcha_key.substring(0, 6).toUpperCase()
+    showCaptcha.value = true
+  } catch (e: any) {
+    console.error('获取验证码失败', e)
+  } finally {
+    captchaLoading.value = false
+  }
+}
 
 async function onSubmit() {
   if (!form.username || !form.password) {
     ElMessage.warning('请填写账号和密码')
     return
   }
+  // 密码错误3次后需要验证码
+  if (showCaptcha.value && !form.captcha) {
+    ElMessage.warning('请填写验证码')
+    return
+  }
   loading.value = true
   try {
-    const res: any = await login({ username: form.username, password: form.password })
+    const res: any = await login({
+      username: form.username,
+      password: form.password,
+      captcha: form.captcha || undefined,
+      captcha_key: form.captcha_key || undefined
+    })
     localStorage.setItem('admin_token', res.token)
+    localStorage.setItem('admin_refresh_token', res.refresh_token || '')
     localStorage.setItem('admin_user', JSON.stringify(res.user))
     localStorage.setItem('admin_nickname', res.user.nickname)
     ElMessage.success('登录成功')
     router.push('/dashboard')
   } catch (e: any) {
+    // 密码错误3次后触发验证码
+    if (e.code === 1001 || e.message?.includes('密码错误')) {
+      if (!showCaptcha.value) {
+        await fetchCaptcha()
+      }
+    }
     ElMessage.error(e.message || '登录失败')
   } finally {
     loading.value = false
   }
 }
 
+onMounted(() => {
+  // 检查是否需要验证码
+  const errorCount = parseInt(localStorage.getItem('login_error_count') || '0')
+  if (errorCount >= 3) {
+    fetchCaptcha()
+  }
+})
+
 function refreshCaptcha() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  captcha.value = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+  fetchCaptcha()
 }
 </script>
 
@@ -86,14 +130,17 @@ function refreshCaptcha() {
               <input v-model="form.password" type="password" placeholder="请输入密码" />
             </div>
           </div>
-          <div class="auth-field">
+          <div class="auth-field" v-if="showCaptcha">
             <label>验证码 <span class="muted small">密码错误 3 次后必填</span></label>
             <div class="auth-row">
               <div class="auth-input">
                 <el-icon><Key /></el-icon>
-                <input v-model="form.captcha" placeholder="输入 4 位验证码" maxlength="4" />
+                <input v-model="form.captcha" placeholder="输入验证码" maxlength="6" />
               </div>
-              <div class="auth-captcha" @click="refreshCaptcha">{{ captcha }}</div>
+              <div class="auth-captcha" @click="refreshCaptcha" :class="{ 'captcha-loading': captchaLoading }">
+                <span v-if="captchaLoading">加载中...</span>
+                <span v-else>{{ captchaImage }}</span>
+              </div>
             </div>
           </div>
           <div class="auth-meta">
@@ -244,6 +291,7 @@ function refreshCaptcha() {
   transition: transform .12s;
 }
 .auth-captcha:hover { transform: scale(1.02); }
+.captcha-loading { cursor: wait; opacity: 0.7; }
 .auth-meta {
   display: flex; align-items: center; justify-content: space-between;
   font-size: 12px; color: var(--ink-3); margin: 4px 0 18px;
