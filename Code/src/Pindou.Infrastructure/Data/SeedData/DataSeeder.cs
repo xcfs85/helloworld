@@ -128,10 +128,10 @@ public class DataSeeder
         if (await _roleRepo.AnyAsync(r => r.Id == 1)) return;
         var roles = new List<Role>
         {
-            new() { Id = 1, Name = "超级管理员", Code = "super_admin", Description = "拥有全部权限", Permissions = "[\"*\"]" },
-            new() { Id = 2, Name = "运营", Code = "operator", Description = "用户、模板、运营、统计", Permissions = "[\"user:view\",\"template:*\",\"operation:*\",\"stats:view\"]" },
-            new() { Id = 3, Name = "审核", Code = "reviewer", Description = "内容审核、模板审核", Permissions = "[\"post:review\",\"comment:review\",\"template:review\",\"report:handle\"]" },
-            new() { Id = 4, Name = "客服", Code = "customer_service", Description = "内容查看、举报处理", Permissions = "[\"post:view\",\"comment:view\",\"report:handle\"]" }
+            new() { Id = 1, Name = "超级管理员", Code = "super_admin", Description = "拥有系统全部权限", Permissions = "[\"*\"]" },
+            new() { Id = 2, Name = "运营", Code = "operator", Description = "运营管理 / 数据统计 / 模板", Permissions = "[\"template\",\"operation\",\"stats\"]" },
+            new() { Id = 3, Name = "审核", Code = "reviewer", Description = "内容审核", Permissions = "[\"post.approve\",\"comment.approve\",\"sensitive\",\"report\"]" },
+            new() { Id = 4, Name = "客服", Code = "customer_service", Description = "用户管理查看", Permissions = "[\"user.approve\"]" }
         };
         await _roleRepo.InsertRangeAsync(roles);
     }
@@ -139,15 +139,17 @@ public class DataSeeder
     private async Task SeedAdminUserAsync()
     {
         if (await _adminRepo.AnyAsync(a => a.Username == "admin")) return;
-        var admin = new AdminUser
+
+        var admins = new List<AdminUser>
         {
-            Username = "admin",
-            Password = BCrypt.Net.BCrypt.HashPassword("admin123"),
-            Nickname = "系统管理员",
-            RoleId = 1,
-            Status = 1
+            new() { Username = "admin", Password = BCrypt.Net.BCrypt.HashPassword("admin123"), Nickname = "系统管理员", RoleId = 1, Status = 1 },
+            // 来自前端 mock 数据的管理员
+            new() { Username = "lin_ops", Password = BCrypt.Net.BCrypt.HashPassword("lin123"), Nickname = "林运营", RoleId = 2, Status = 1 },
+            new() { Username = "li_audit", Password = BCrypt.Net.BCrypt.HashPassword("li123"), Nickname = "李审核", RoleId = 3, Status = 1 },
+            new() { Username = "chen_cs", Password = BCrypt.Net.BCrypt.HashPassword("chen123"), Nickname = "陈客服", RoleId = 4, Status = 1 },
+            new() { Username = "zhang_admin", Password = BCrypt.Net.BCrypt.HashPassword("zhang123"), Nickname = "张管理员", RoleId = 1, Status = 1 }
         };
-        await _adminRepo.InsertAsync(admin);
+        await _adminRepo.InsertRangeAsync(admins);
     }
 
     private async Task SeedTemplateCategoriesAsync()
@@ -174,21 +176,21 @@ public class DataSeeder
         if (await _mardRepo.AnyAsync(c => true)) return;
         var colors = new List<MardColor>
         {
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M01", ColorName = "纯白", Rgb = "255,255,255", Category = "white", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M02", ColorName = "黑色", Rgb = "0,0,0", Category = "black", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M03", ColorName = "正红", Rgb = "237,28,36", Category = "red", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M04", ColorName = "橙色", Rgb = "242,101,34", Category = "orange", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M05", ColorName = "黄色", Rgb = "255,222,23", Category = "yellow", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M06", ColorName = "草绿", Rgb = "34,177,76", Category = "green", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M07", ColorName = "天蓝", Rgb = "0,162,232", Category = "blue", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M08", ColorName = "深蓝", Rgb = "63,72,204", Category = "blue", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M09", ColorName = "紫色", Rgb = "163,73,164", Category = "purple", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M10", ColorName = "粉色", Rgb = "255,174,201", Category = "special", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M11", ColorName = "灰色", Rgb = "128,128,128", Category = "gray", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M12", ColorName = "浅灰", Rgb = "200,200,200", Category = "gray", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "H01", ColorName = "肤色", Rgb = "255,220,178", Category = "special", IsCommon = 1 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "H02", ColorName = "深咖", Rgb = "101,67,33", Category = "special", IsCommon = 0 },
-            new() { Id = Guid.NewGuid().ToString(), ColorNo = "H03", ColorName = "亮金", Rgb = "255,201,14", Category = "special", IsCommon = 0 }
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M01", ColorName = "纯白", Rgb = "255,255,255", Category = "white", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M02", ColorName = "黑色", Rgb = "0,0,0", Category = "black", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M03", ColorName = "正红", Rgb = "237,28,36", Category = "red", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M04", ColorName = "橙色", Rgb = "242,101,34", Category = "orange", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M05", ColorName = "黄色", Rgb = "255,222,23", Category = "yellow", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M06", ColorName = "草绿", Rgb = "34,177,76", Category = "green", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M07", ColorName = "天蓝", Rgb = "0,162,232", Category = "blue", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M08", ColorName = "深蓝", Rgb = "63,72,204", Category = "blue", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M09", ColorName = "紫色", Rgb = "163,73,164", Category = "purple", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M10", ColorName = "粉色", Rgb = "255,174,201", Category = "special", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M11", ColorName = "灰色", Rgb = "128,128,128", Category = "gray", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M12", ColorName = "浅灰", Rgb = "200,200,200", Category = "gray", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "H01", ColorName = "肤色", Rgb = "255,220,178", Category = "special", IsCommon = 1, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "H02", ColorName = "深咖", Rgb = "101,67,33", Category = "special", IsCommon = 0, Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "H03", ColorName = "亮金", Rgb = "255,201,14", Category = "special", IsCommon = 0, Status = 1 }
         };
         await _mardRepo.InsertRangeAsync(colors);
     }
@@ -218,10 +220,10 @@ public class DataSeeder
         if (await _productRepo.AnyAsync(p => true)) return;
         var products = new List<MemberProduct>
         {
-            new() { Id = Guid.NewGuid().ToString(), ProductId = "monthly_vip", ProductName = "月度会员", Grade = "month", DurationDays = 30, Price = 19.90m, OriginalPrice = 29.90m, DailyGenerations = 10, Features = "[\"每日10次生成\",\"去广告\",\"专属色号\"]" },
-            new() { ProductId = "quarterly_vip", ProductName = "季度会员", Grade = "quarter", DurationDays = 90, Price = 49.90m, OriginalPrice = 89.70m, DailyGenerations = 20, Features = "[\"每日20次生成\",\"去广告\",\"专属色号\",\"优先处理\"]" },
-            new() { ProductId = "yearly_vip", ProductName = "年度会员", Grade = "year", DurationDays = 365, Price = 199.00m, OriginalPrice = 358.80m, DailyGenerations = 50, Features = "[\"每日50次生成\",\"去广告\",\"专属色号\",\"优先处理\",\"无限收藏\"]" },
-            new() { ProductId = "lifetime_vip", ProductName = "终身会员", Grade = "lifetime", DurationDays = 36500, Price = 499.00m, OriginalPrice = 999.00m, DailyGenerations = -1, Features = "[\"无限生成\",\"全部权益\",\"终身有效\"]" }
+            new() { Id = Guid.NewGuid().ToString(), ProductId = "monthly_vip", ProductName = "月度会员", Grade = "month", DurationDays = 30, Price = 19.90m, OriginalPrice = 29.90m, DailyGenerations = 10, Features = "[\"每日10次生成\",\"去广告\",\"专属色号\"]", Status = 1 },
+            new() { ProductId = "quarterly_vip", ProductName = "季度会员", Grade = "quarter", DurationDays = 90, Price = 49.90m, OriginalPrice = 89.70m, DailyGenerations = 20, Features = "[\"每日20次生成\",\"去广告\",\"专属色号\",\"优先处理\"]", Status = 1 },
+            new() { ProductId = "yearly_vip", ProductName = "年度会员", Grade = "year", DurationDays = 365, Price = 199.00m, OriginalPrice = 358.80m, DailyGenerations = 50, Features = "[\"每日50次生成\",\"去广告\",\"专属色号\",\"优先处理\",\"无限收藏\"]", Status = 1 },
+            new() { ProductId = "lifetime_vip", ProductName = "终身会员", Grade = "lifetime", DurationDays = 36500, Price = 499.00m, OriginalPrice = 999.00m, DailyGenerations = -1, Features = "[\"无限生成\",\"全部权益\",\"终身有效\"]", Status = 1 }
         };
         await _productRepo.InsertRangeAsync(products);
     }
@@ -231,9 +233,9 @@ public class DataSeeder
         if (await _beadKitRepo.AnyAsync(c => true)) return;
         var kits = new List<BeadKit>
         {
-            new() { Id = Guid.NewGuid().ToString(), KitId = "KIT-48", KitName = "MARD 48色基础套装", Brand = "MARD", ColorCount = 48, BeadCount = 6000, Price = 39.90m, PurchaseUrl = "https://item.jd.com/10001.html" },
-            new() { KitId = "KIT-72", KitName = "MARD 72色进阶套装", Brand = "MARD", ColorCount = 72, BeadCount = 9000, Price = 69.90m, PurchaseUrl = "https://item.jd.com/10002.html" },
-            new() { KitId = "KIT-128", KitName = "MARD 128色全色套装", Brand = "MARD", ColorCount = 128, BeadCount = 16000, Price = 159.00m, PurchaseUrl = "https://item.jd.com/10003.html" }
+            new() { Id = Guid.NewGuid().ToString(), KitId = "KIT-48", KitName = "MARD 48色基础套装", Brand = "MARD", ColorCount = 48, BeadCount = 6000, Price = 39.90m, PurchaseUrl = "https://item.jd.com/10001.html", Status = 1 },
+            new() { KitId = "KIT-72", KitName = "MARD 72色进阶套装", Brand = "MARD", ColorCount = 72, BeadCount = 9000, Price = 69.90m, PurchaseUrl = "https://item.jd.com/10002.html", Status = 1 },
+            new() { KitId = "KIT-128", KitName = "MARD 128色全色套装", Brand = "MARD", ColorCount = 128, BeadCount = 16000, Price = 159.00m, PurchaseUrl = "https://item.jd.com/10003.html", Status = 1 }
         };
         await _beadKitRepo.InsertRangeAsync(kits);
     }
@@ -241,11 +243,39 @@ public class DataSeeder
     private async Task SeedSensitiveWordsAsync()
     {
         if (await _sensitiveWordRepo.AnyAsync(c => true)) return;
+
+        // 敏感词级别映射: 1-警告 2-替换 3-拦截
+        var levelMap = new Dictionary<string, int>
+        {
+            { "severe", 3 },
+            { "medium", 2 },
+            { "minor", 1 }
+        };
+        var typeMap = new Dictionary<string, string>
+        {
+            { "political", "politics" },
+            { "porn", "porn" },
+            { "violence", "violence" },
+            { "ads", "ad" },
+            { "copyright", "other" },
+            { "other", "other" }
+        };
+
         var words = new List<SensitiveWord>
         {
-            new() { Id = Guid.NewGuid().ToString(), Word = "广告", Level = 1, Type = "ad", ReplaceWord = "[推广]" },
-            new() { Word = "代刷", Level = 3, Type = "ad" },
-            new() { Word = "兼职", Level = 2, Type = "ad", ReplaceWord = "[工作]" }
+            // 来自前端的敏感词数据
+            new() { Id = Guid.NewGuid().ToString(), Word = "习近平", Level = 3, Type = "politics", ReplaceWord = "***", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "性感荷官", Level = 3, Type = "porn", ReplaceWord = "***", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "微信二维码", Level = 2, Type = "ad", ReplaceWord = "[联系方式]", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "盗版", Level = 2, Type = "other", ReplaceWord = "未经授权", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "咒骂词", Level = 1, Type = "other", ReplaceWord = "**", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "赌博", Level = 3, Type = "other", ReplaceWord = "***", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "暴力血腥", Level = 3, Type = "violence", ReplaceWord = "***", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "拼多多砍一刀", Level = 2, Type = "ad", ReplaceWord = "[其他平台]", Status = 1 },
+            // 原有基础敏感词
+            new() { Id = Guid.NewGuid().ToString(), Word = "广告", Level = 1, Type = "ad", ReplaceWord = "[推广]", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "代刷", Level = 3, Type = "ad", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "兼职", Level = 2, Type = "ad", ReplaceWord = "[工作]", Status = 1 }
         };
         await _sensitiveWordRepo.InsertRangeAsync(words);
     }

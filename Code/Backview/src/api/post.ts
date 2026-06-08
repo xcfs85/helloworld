@@ -1,80 +1,186 @@
-/** 内容管理 API（基于 03-内容管理模块详细设计） */
+/** 内容管理 API
+ * 对接真实后台接口 */
 
-import { delay, M, pageQuery } from './_mock'
-import type { PageQuery, Post, Comment, SensitiveWord, Report } from '@/types'
+import request from '@/utils/request'
+import type { PageQuery } from '@/types'
 
-// 帖子审核列表
+// ===== 帖子审核 =====
+
+// 待审核帖子列表
 export function listPostReviews(query: PageQuery & {
+  type?: string
+  start_time?: string
+  end_time?: string
+}) {
+  return request.get<{ list: PostReviewItem[]; total: number }>('/content/posts/pending', { params: query })
+}
+
+export interface PostReviewItem {
+  id: string
+  post_id: string
+  type: string
+  title: string
+  user: {
+    id: string
+    nickname: string
+    avatar?: string
+  }
+  media_count: number
+  ai_review: {
+    risk_level: string
+    risk_tags?: string[]
+  }
+  create_time: string
+}
+
+// 帖子详情
+export function getPost(id: string) {
+  return request.get<PostDetailItem>('/content/posts/' + id)
+}
+
+export interface PostDetailItem {
+  id: string
+  post_id: string
+  type: string
+  title: string
+  content: string
+  images: string[]
+  videos?: string[]
+  user: {
+    id: string
+    nickname: string
+    avatar?: string
+  }
+  ip: string
+  device: string
+  location?: string
+  status: string
+  ai_review: {
+    risk_level: string
+    risk_tags?: string[]
+  }
+  create_time: string
+}
+
+// 审核通过帖子
+export function approvePost(id: string) {
+  return request.post('/content/posts/' + id + '/approve')
+}
+
+// 驳回帖子
+export function rejectPost(id: string, reason?: string) {
+  return request.post('/content/posts/' + id + '/reject', { reason })
+}
+
+// 批量审核通过
+export function batchApprovePosts(ids: string[]) {
+  return request.post('/content/posts/batch-approve', { post_ids: ids })
+}
+
+// 批量驳回
+export function batchRejectPosts(ids: string[], reason?: string) {
+  return request.post('/content/posts/batch-reject', { post_ids: ids, reason })
+}
+
+// ===== 评论管理 =====
+
+// 评论列表
+export function listCommentReviews(query: PageQuery & {
+  post_id?: string
+  status?: string
+}) {
+  return request.get<{ list: CommentItem[]; total: number }>('/content/comments', { params: query })
+}
+
+export interface CommentItem {
+  id: string
+  post_id: string
+  post_title: string
+  user: {
+    id: string
+    nickname: string
+    avatar?: string
+  }
+  content: string
+  ip: string
+  status: string
+  create_time: string
+}
+
+// 隐藏评论
+export function hideComment(id: string) {
+  return request.post('/content/comments/' + id + '/hide')
+}
+
+// 审核通过评论（与隐藏相同逻辑）
+export function approveComment(id: string) {
+  return request.post('/content/comments/' + id + '/hide')
+}
+
+// 删除评论
+export function deleteComment(id: string) {
+  return request.delete('/content/comments/' + id)
+}
+
+// ===== 敏感词管理 =====
+
+// 敏感词列表
+export function listSensitiveWords(query: { page?: number; page_size?: number; level?: number; type?: string; keyword?: string } = {}) {
+  return request.get<{ list: SensitiveWordItem[]; total: number }>('/content/sensitive-words', { params: query })
+}
+
+export interface SensitiveWordItem {
+  id: string
+  word: string
+  level: number
+  type: string
+  replace_word?: string
+  status: number
+  create_time: string
+}
+
+// 添加敏感词
+export function addSensitiveWord(data: { word: string; level: number; type: string; replace_word?: string }) {
+  return request.post<{ id: string }>('/content/sensitive-words', data)
+}
+
+// 更新敏感词
+export function updateSensitiveWord(id: string, data: { word?: string; level?: number; type?: string; replace_word?: string }) {
+  return request.put('/content/sensitive-words/' + id, data)
+}
+
+// 删除敏感词
+export function deleteSensitiveWord(id: string) {
+  return request.delete('/content/sensitive-words/' + id)
+}
+
+// ===== 举报管理 =====
+
+// 举报列表
+export function listReports(query: PageQuery & {
   status?: string
   type?: string
-  risk_level?: string
 }) {
-  return delay().then(() => {
-    return pageQuery<Post>(M.mockPosts, query, (p) => {
-      if (query.status && query.status !== 'all' && p.status !== query.status) return false
-      if (query.type && query.type !== 'all' && p.type !== query.type) return false
-      if (query.risk_level && query.risk_level !== 'all' && p.risk_level !== query.risk_level) return false
-      return true
-    })
-  })
+  return request.get<{ list: ReportItem[]; total: number }>('/content/reports', { params: query })
 }
 
-export function getPost(id: string) {
-  return delay().then(() => M.mockPosts.find(p => p.id === id))
+export interface ReportItem {
+  id: string
+  report_id: string
+  reporter: {
+    id: string
+    nickname: string
+  }
+  target_type: string
+  target_id: string
+  target_content?: string
+  reason: string
+  images?: string[]
+  status: string
+  create_time: string
 }
 
-export function approvePost(id: string, note?: string) {
-  return delay().then(() => ({ success: true }))
+// 处理举报
+export function handleReport(id: string, action: string, result?: string) {
+  return request.post('/content/reports/' + id + '/handle', { action, result })
 }
-
-export function rejectPost(id: string, reason: string, note?: string) {
-  return delay().then(() => ({ success: true }))
-}
-
-export function batchApprovePosts(ids: string[]) {
-  return delay().then(() => ({ success: true, count: ids.length }))
-}
-
-export function batchRejectPosts(ids: string[], reason: string) {
-  return delay().then(() => ({ success: true, count: ids.length }))
-}
-
-// 评论审核
-export function listCommentReviews(query: PageQuery & { status?: string }) {
-  return delay().then(() => {
-    return pageQuery<Comment>(M.mockComments, query, (c) => {
-      if (query.status && query.status !== 'all' && c.status !== query.status) return false
-      return true
-    })
-  })
-}
-
-export function approveComment(id: string) { return delay().then(() => ({ success: true })) }
-export function hideComment(id: string) { return delay().then(() => ({ success: true })) }
-export function deleteComment(id: string) { return delay().then(() => ({ success: true })) }
-
-// 敏感词
-export function listSensitiveWords(query: PageQuery & { level?: string; type?: string }) {
-  return delay().then(() => {
-    return pageQuery<SensitiveWord>(M.mockSensitiveWords, query, (w) => {
-      if (query.level && query.level !== 'all' && w.level !== query.level) return false
-      if (query.type && query.type !== 'all' && w.type !== query.type) return false
-      return true
-    })
-  })
-}
-export function addSensitiveWord(data: Partial<SensitiveWord>) { return delay().then(() => ({ success: true })) }
-export function updateSensitiveWord(id: string, data: Partial<SensitiveWord>) { return delay().then(() => ({ success: true })) }
-export function deleteSensitiveWord(id: string) { return delay().then(() => ({ success: true })) }
-
-// 举报
-export function listReports(query: PageQuery & { status?: string; type?: string }) {
-  return delay().then(() => {
-    return pageQuery<Report>(M.mockReports, query, (r) => {
-      if (query.status && query.status !== 'all' && r.status !== query.status) return false
-      if (query.type && query.type !== 'all' && r.type !== query.type) return false
-      return true
-    })
-  })
-}
-export function handleReport(id: string, action: string) { return delay().then(() => ({ success: true })) }
