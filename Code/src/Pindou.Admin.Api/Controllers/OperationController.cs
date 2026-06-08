@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Pindou.Application.Common;
+using Pindou.Application.DTOs.Community;
 using Pindou.Application.DTOs.Operation;
 using Pindou.Application.Interfaces.Messaging;
 using Pindou.Shared.Attributes;
