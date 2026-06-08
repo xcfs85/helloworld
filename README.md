@@ -26,29 +26,25 @@
 
 ## 技术架构
 
-### 后端技术栈
+### 前端技术栈
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      应用层 (Application)                 │
-│         DTOs / Service Interfaces / Common              │
+│                    移动端 APP (Vue 3 + UniApp)           │
+│              跨平台应用 (iOS / Android / H5)             │
 ├─────────────────────────────────────────────────────────┤
-│                       领域层 (Domain)                     │
-│            Entities / Enums / Interfaces                 │
+│                  管理后台 (Vue 3 + Element Plus)         │
+│                   PC端响应式管理界面                      │
 ├─────────────────────────────────────────────────────────┤
-│                   基础设施层 (Infrastructure)              │
-│      Repositories / Data / External Services            │
-├─────────────────────────────────────────────────────────┤
-│                      共享层 (Shared)                      │
-│          Extensions / Attributes / Utilities            │
+│                      后端 API (.NET 8)                   │
+│              RESTful API + Swagger 文档                 │
 └─────────────────────────────────────────────────────────┘
 ```
 
-- **框架**: .NET 8.0 + ASP.NET Core
+- **移动端 APP**: Vue 3 + UniApp + Pinia（跨平台开发）
+- **管理后台**: Vue 3 + Element Plus + TypeScript
+- **后端框架**: .NET 8.0 + ASP.NET Core
 - **架构模式**: DDD (Domain-Driven Design) 分层架构
-- **数据库**: PostgreSQL 8 + Redis 7
-- **认证**: JWT
-- **AI服务**: 阿里云 GPU (按量付费)
 
 ### 项目结构
 
@@ -64,10 +60,25 @@ pindou/
 │   │   ├── Pindou.Shared/         # 共享工具
 │   │   └── Pindou.Tests/          # 单元测试
 │   ├── Pindou.sln                 # 解决方案文件
-│   └── docker-compose.yml         # 容器编排
-├── UI/                            # 前端原型
-│   ├── APP/                       # 移动端原型
-│   └── Back/                      # 管理后台原型
+│   └── docker-compose..yml        # 容器编排
+├── UI/                            # 前端代码
+│   ├── APP/                       # 移动端 APP (Vue 3 + UniApp)
+│   │   ├── components/            # 组件目录
+│   │   ├── pages/                 # 页面目录
+│   │   ├── stores/                # 状态管理 (Pinia)
+│   │   ├── utils/                 # 工具函数
+│   │   ├── App.vue                # 应用入口
+│   │   ├── main.js                # 入口文件
+│   │   ├── manifest.json          # UniApp配置
+│   │   └── pages.json             # 页面路由配置
+│   └── Back/                      # 管理后台 (Vue 3 + Element Plus)
+│       ├── components/            # 组件目录
+│       ├── views/                 # 视图页面
+│       ├── router/                # 路由配置
+│       ├── stores/                # 状态管理
+│       ├── api/                   # API 调用
+│       ├── App.vue                # 应用入口
+│       └── main.js                # 入口文件
 ├── 01-拼豆软件产品规划/             # 产品规划文档
 ├── 02-需求分析/                    # 需求规格说明书
 ├── 03-总体设计/                    # 架构设计文档
