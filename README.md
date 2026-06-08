@@ -30,8 +30,8 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    移动端 APP (Vue 3 + UniApp)           │
-│              跨平台应用 (iOS / Android / H5)             │
+│                    移动端 APP (Flutter 3. x)             │
+│              跨平台应用 (iOS / Android / Web)             │
 ├─────────────────────────────────────────────────────────┤
 │                  管理后台 (Vue 3 + Element Plus)         │
 │                   PC端响应式管理界面                      │
@@ -41,7 +41,7 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
-- **移动端 APP**: Vue 3 + UniApp + Pinia（跨平台开发）
+- **移动端 APP**: Flutter 3.x（跨平台开发）
 - **管理后台**: Vue 3 + Element Plus + TypeScript
 - **后端框架**: .NET 8.0 + ASP.NET Core
 - **架构模式**: DDD (Domain-Driven Design) 分层架构
@@ -62,15 +62,16 @@ pindou/
 │   ├── Pindou.sln                 # 解决方案文件
 │   └── docker-compose..yml        # 容器编排
 ├── UI/                            # 前端代码
-│   ├── APP/                       # 移动端 APP (Vue 3 + UniApp)
-│   │   ├── components/            # 组件目录
-│   │   ├── pages/                 # 页面目录
-│   │   ├── stores/                # 状态管理 (Pinia)
-│   │   ├── utils/                 # 工具函数
-│   │   ├── App.vue                # 应用入口
-│   │   ├── main.js                # 入口文件
-│   │   ├── manifest.json          # UniApp配置
-│   │   └── pages.json             # 页面路由配置
+│   ├── APP/                       # 移动端 APP (Flutter 3.x)
+│   │   ├── lib/                    # Dart 源码
+│   │   │   ├── core/               # 核心配置、常量
+│   │   │   ├── models/             # 数据模型
+│   │   │   ├── services/           # 业务服务
+│   │   │   ├── screens/            # 页面
+│   │   │   ├── widgets/            # 公共组件
+│   │   │   └── main.dart           # 入口文件
+│   │   ├── pubspec.yaml            # 依赖配置
+│   │   └── ios/android/            # 平台原生配置
 │   └── Back/                      # 管理后台 (Vue 3 + Element Plus)
 │       ├── components/            # 组件目录
 │       ├── views/                 # 视图页面
