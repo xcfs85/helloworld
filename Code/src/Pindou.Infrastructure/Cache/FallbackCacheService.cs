@@ -27,7 +27,7 @@ public class FallbackCacheService : ICacheService
         if (db == null) return _fallback.Get<T>(key);
         var v = await db.StringGetAsync(Key(key));
         if (v.IsNullOrEmpty) return default;
-        return System.Text.Json.JsonSerializer.Deserialize<T>(v!);
+        return System.Text.Json.JsonSerializer.Deserialize<T>(v.ToString());
     }
 
     public async Task<string?> GetStringAsync(string key)
@@ -122,7 +122,7 @@ public class FallbackCacheService : ICacheService
         if (db == null) return default;
         var v = await db.HashGetAsync(Key(key), field);
         if (v.IsNullOrEmpty) return default;
-        return System.Text.Json.JsonSerializer.Deserialize<T>(v!);
+        return System.Text.Json.JsonSerializer.Deserialize<T>(v.ToString());
     }
 
     public async Task HashSetAsync(string key, string field, object value)

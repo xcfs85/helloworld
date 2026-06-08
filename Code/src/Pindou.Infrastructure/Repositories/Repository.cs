@@ -103,12 +103,31 @@ public class Repository<TEntity> : IRepository<TEntity> where TEntity : class, n
 
     public async Task<object> InsertAsync(TEntity entity)
     {
-        return await Db.Insertable(entity).ExecuteReturnSnowflakeIdAsync();
+        // 兼容 long/string 主键
+        var id = await Db.Insertable(entity).ExecuteReturnIdentityAsync();
+        if (id > 0)
+        {
+            ((dynamic)entity).Id = id;
+            return id;
+        }
+        // 当主键为 string（UUID）或非自增时，使用 InsertReturningEntity / 直接拿实体上的 Id
+        try
+        {
+            var inserted = await Db.Insertable(entity).ExecuteReturnEntityAsync();
+            return ((dynamic)inserted).Id!;
+        }
+        catch
+        {
+            await Db.Insertable(entity).ExecuteCommandAsync();
+            return ((dynamic)entity).Id!;
+        }
     }
 
     public async Task<List<object>> InsertRangeAsync(List<TEntity> entities)
     {
-        return (await Db.Insertable(entities).ExecuteReturnSnowflakeIdListAsync()).Select(id => (object)id).ToList();
+        // 兼容 long/string 主键：使用 ExecuteCommandAsync 让库自行处理主键生成
+        var count = await Db.Insertable(entities).ExecuteCommandAsync();
+        return entities.Select(e => (object)((dynamic)e).Id!).ToList();
     }
 
     public async Task<bool> UpdateAsync(TEntity entity)

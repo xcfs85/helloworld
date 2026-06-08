@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Pindou.Infrastructure</RootNamespace>
@@ -9,13 +9,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="SqlSugar" Version="5.1.4.178" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.118" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageReference Include="StackExchange.Redis" Version="2.7.33" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.6.0" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />

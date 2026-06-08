@@ -47,7 +47,7 @@ public class RedisCacheService : ICacheService
     {
         var value = await _db.StringGetAsync(Key(key));
         if (value.IsNullOrEmpty) return default;
-        return JsonSerializer.Deserialize<T>(value!);
+        return JsonSerializer.Deserialize<T>(value.ToString());
     }
 
     public async Task<string?> GetStringAsync(string key)
@@ -119,7 +119,7 @@ public class RedisCacheService : ICacheService
     {
         var value = await _db.HashGetAsync(Key(key), field);
         if (value.IsNullOrEmpty) return default;
-        return JsonSerializer.Deserialize<T>(value!);
+        return JsonSerializer.Deserialize<T>(value.ToString());
     }
 
     public async Task HashSetAsync(string key, string field, object value)
