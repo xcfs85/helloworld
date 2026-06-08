@@ -128,10 +128,10 @@ public class DataSeeder
         if (await _roleRepo.AnyAsync(r => r.Id == 1)) return;
         var roles = new List<Role>
         {
-            new() { Id = 1, Name = "超级管理员", Code = "super_admin", Description = "拥有全部权限", Permissions = "[\"*\"]" },
-            new() { Id = 2, Name = "运营", Code = "operator", Description = "用户、模板、运营、统计", Permissions = "[\"user:view\",\"template:*\",\"operation:*\",\"stats:view\"]" },
-            new() { Id = 3, Name = "审核", Code = "reviewer", Description = "内容审核、模板审核", Permissions = "[\"post:review\",\"comment:review\",\"template:review\",\"report:handle\"]" },
-            new() { Id = 4, Name = "客服", Code = "customer_service", Description = "内容查看、举报处理", Permissions = "[\"post:view\",\"comment:view\",\"report:handle\"]" }
+            new() { Id = 1, Name = "超级管理员", Code = "super_admin", Description = "拥有系统全部权限", Permissions = "[\"*\"]" },
+            new() { Id = 2, Name = "运营", Code = "operator", Description = "运营管理 / 数据统计 / 模板", Permissions = "[\"template\",\"operation\",\"stats\"]" },
+            new() { Id = 3, Name = "审核", Code = "reviewer", Description = "内容审核", Permissions = "[\"post.approve\",\"comment.approve\",\"sensitive\",\"report\"]" },
+            new() { Id = 4, Name = "客服", Code = "customer_service", Description = "用户管理查看", Permissions = "[\"user.approve\"]" }
         };
         await _roleRepo.InsertRangeAsync(roles);
     }
@@ -139,15 +139,17 @@ public class DataSeeder
     private async Task SeedAdminUserAsync()
     {
         if (await _adminRepo.AnyAsync(a => a.Username == "admin")) return;
-        var admin = new AdminUser
+
+        var admins = new List<AdminUser>
         {
-            Username = "admin",
-            Password = BCrypt.Net.BCrypt.HashPassword("admin123"),
-            Nickname = "系统管理员",
-            RoleId = 1,
-            Status = 1
+            new() { Username = "admin", Password = BCrypt.Net.BCrypt.HashPassword("admin123"), Nickname = "系统管理员", RoleId = 1, Status = 1 },
+            // 来自前端 mock 数据的管理员
+            new() { Username = "lin_ops", Password = BCrypt.Net.BCrypt.HashPassword("lin123"), Nickname = "林运营", RoleId = 2, Status = 1 },
+            new() { Username = "li_audit", Password = BCrypt.Net.BCrypt.HashPassword("li123"), Nickname = "李审核", RoleId = 3, Status = 1 },
+            new() { Username = "chen_cs", Password = BCrypt.Net.BCrypt.HashPassword("chen123"), Nickname = "陈客服", RoleId = 4, Status = 1 },
+            new() { Username = "zhang_admin", Password = BCrypt.Net.BCrypt.HashPassword("zhang123"), Nickname = "张管理员", RoleId = 1, Status = 1 }
         };
-        await _adminRepo.InsertAsync(admin);
+        await _adminRepo.InsertRangeAsync(admins);
     }
 
     private async Task SeedTemplateCategoriesAsync()
@@ -241,11 +243,39 @@ public class DataSeeder
     private async Task SeedSensitiveWordsAsync()
     {
         if (await _sensitiveWordRepo.AnyAsync(c => true)) return;
+
+        // 敏感词级别映射: 1-警告 2-替换 3-拦截
+        var levelMap = new Dictionary<string, int>
+        {
+            { "severe", 3 },
+            { "medium", 2 },
+            { "minor", 1 }
+        };
+        var typeMap = new Dictionary<string, string>
+        {
+            { "political", "politics" },
+            { "porn", "porn" },
+            { "violence", "violence" },
+            { "ads", "ad" },
+            { "copyright", "other" },
+            { "other", "other" }
+        };
+
         var words = new List<SensitiveWord>
         {
-            new() { Id = Guid.NewGuid().ToString(), Word = "广告", Level = 1, Type = "ad", ReplaceWord = "[推广]" },
-            new() { Word = "代刷", Level = 3, Type = "ad" },
-            new() { Word = "兼职", Level = 2, Type = "ad", ReplaceWord = "[工作]" }
+            // 来自前端的敏感词数据
+            new() { Id = Guid.NewGuid().ToString(), Word = "习近平", Level = 3, Type = "politics", ReplaceWord = "***", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "性感荷官", Level = 3, Type = "porn", ReplaceWord = "***", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "微信二维码", Level = 2, Type = "ad", ReplaceWord = "[联系方式]", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "盗版", Level = 2, Type = "other", ReplaceWord = "未经授权", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "咒骂词", Level = 1, Type = "other", ReplaceWord = "**", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "赌博", Level = 3, Type = "other", ReplaceWord = "***", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "暴力血腥", Level = 3, Type = "violence", ReplaceWord = "***", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "拼多多砍一刀", Level = 2, Type = "ad", ReplaceWord = "[其他平台]", Status = 1 },
+            // 原有基础敏感词
+            new() { Id = Guid.NewGuid().ToString(), Word = "广告", Level = 1, Type = "ad", ReplaceWord = "[推广]", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "代刷", Level = 3, Type = "ad", Status = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Word = "兼职", Level = 2, Type = "ad", ReplaceWord = "[工作]", Status = 1 }
         };
         await _sensitiveWordRepo.InsertRangeAsync(words);
     }
