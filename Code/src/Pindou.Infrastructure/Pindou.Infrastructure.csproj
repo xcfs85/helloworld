@@ -23,6 +23,7 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="3.0.2" />
     <PackageReference Include="NPOI" Version="2.7.0" />
     <PackageReference Include="Qiniu" Version="8.7.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
 
   <ItemGroup>
