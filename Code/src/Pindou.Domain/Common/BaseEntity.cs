@@ -10,7 +10,7 @@ public abstract class BaseEntity
     /// <summary>
     /// 主键ID
     /// </summary>
-    [SugarColumn(IsPrimaryKey = true)]
+    [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
     public long Id { get; set; }
 
     /// <summary>

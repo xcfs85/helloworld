@@ -79,4 +79,43 @@ public class PindouDbContext
     {
         Db.Dispose();
     }
+
+    /// <summary>
+    /// 确保数据库本身存在（PostgreSQL 需要先建库才能建表）
+    /// </summary>
+    public void EnsureDatabase()
+    {
+        // 1) 优先尝试直接连接目标库
+        try
+        {
+            Db.Ado.Connection.Open();
+            Db.Ado.Connection.Close();
+            return;
+        }
+        catch
+        {
+            // 目标库不存在，继续尝试建库
+        }
+
+        // 2) 退化为：解析连接串，连到默认库（postgres）后建库
+        try
+        {
+            var original = Db.Ado.Connection.ConnectionString;
+            var connString = new Npgsql.NpgsqlConnectionStringBuilder(original) { Database = "postgres" }.ToString();
+            using var bootstrap = new Npgsql.NpgsqlConnection(connString);
+            bootstrap.Open();
+            using var cmd = bootstrap.CreateCommand();
+            var targetDb = new Npgsql.NpgsqlConnectionStringBuilder(original).Database;
+            if (!string.IsNullOrWhiteSpace(targetDb))
+            {
+                // 库名加引号，避免关键字冲突
+                cmd.CommandText = $"CREATE DATABASE \"{targetDb}\"";
+                cmd.ExecuteNonQuery();
+            }
+        }
+        catch
+        {
+            // 若库已存在或建库失败，交给后续 InitTables 抛错提示
+        }
+    }
 }

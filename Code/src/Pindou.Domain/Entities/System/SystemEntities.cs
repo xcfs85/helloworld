@@ -45,7 +45,7 @@ public class MardColor : UuidEntity
     public string ColorName { get; set; } = string.Empty;
 
     /// <summary>RGB值</summary>
-    [SugarColumn(Length = 10, IsNullable = false)]
+    [SugarColumn(Length = 20, IsNullable = false)]
     public string Rgb { get; set; } = string.Empty;
 
     /// <summary>LAB值</summary>
