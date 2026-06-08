@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Pindou.Application.Common;
+using Pindou.Application.DTOs.Auth;
 using Pindou.Application.DTOs.User;
 using Pindou.Application.Interfaces.User;
 using Pindou.Infrastructure.ExternalServices.Storage;
@@ -20,19 +21,19 @@ public class UserController : ControllerBase
     }
 
     [HttpGet("info")]
-    public async Task<ApiResponse<DTOs.Auth.UserInfo>> Info()
+    public async Task<ApiResponse<UserInfo>> Info()
     {
         var userId = HttpContext.Items["UserId"]?.ToString() ?? string.Empty;
         var data = await _userService.GetUserInfoAsync(userId);
-        return ApiResponse<DTOs.Auth.UserInfo>.Ok(data);
+        return ApiResponse<UserInfo>.Ok(data);
     }
 
     [HttpPut("info")]
-    public async Task<ApiResponse<DTOs.Auth.UserInfo>> UpdateInfo([FromBody] UpdateUserRequest request)
+    public async Task<ApiResponse<UserInfo>> UpdateInfo([FromBody] UpdateUserRequest request)
     {
         var userId = HttpContext.Items["UserId"]?.ToString() ?? string.Empty;
         var data = await _userService.UpdateUserInfoAsync(userId, request);
-        return ApiResponse<DTOs.Auth.UserInfo>.Ok(data);
+        return ApiResponse<UserInfo>.Ok(data);
     }
 }
 

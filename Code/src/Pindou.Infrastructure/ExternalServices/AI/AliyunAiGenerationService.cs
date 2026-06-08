@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Pindou.Infrastructure.Options;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -14,12 +15,12 @@ public class AliyunAiGenerationService : IAiGenerationService
     private readonly AiOptions _options;
     private readonly ILogger<AliyunAiGenerationService> _logger;
 
-    public AliyunAiGenerationService(HttpClient httpClient, AiOptions options, ILogger<AliyunAiGenerationService> logger)
+    public AliyunAiGenerationService(HttpClient httpClient, IOptions<AiOptions> options, ILogger<AliyunAiGenerationService> logger)
     {
         _httpClient = httpClient;
-        _options = options;
+        _options = options.Value;
         _logger = logger;
-        _httpClient.Timeout = TimeSpan.FromSeconds(options.Timeout);
+        _httpClient.Timeout = TimeSpan.FromSeconds(_options.Timeout);
     }
 
     public async Task<string> SubmitAsync(AiGenerationRequest request)

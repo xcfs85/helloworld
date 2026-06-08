@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Pindou.Api.BackgroundServices;
 using Pindou.Infrastructure.Data;
 using Pindou.Infrastructure.Data.SeedData;
 using Pindou.Infrastructure.DependencyInjection;

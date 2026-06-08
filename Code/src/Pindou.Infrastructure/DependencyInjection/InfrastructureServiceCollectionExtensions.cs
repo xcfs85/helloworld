@@ -12,6 +12,7 @@ using Pindou.Application.Interfaces.Template;
 using Pindou.Application.Interfaces.User;
 using Pindou.Infrastructure.Cache;
 using Pindou.Infrastructure.Data;
+using Pindou.Infrastructure.Data.SeedData;
 using Pindou.Infrastructure.ExternalServices.AI;
 using Pindou.Infrastructure.ExternalServices.Sms;
 using Pindou.Infrastructure.ExternalServices.Storage;
@@ -51,6 +52,7 @@ public static class InfrastructureServiceCollectionExtensions
             var options = configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>() ?? new DatabaseOptions();
             return new PindouDbContext(options);
         });
+        services.AddScoped<DataSeeder>();
 
         // Redis
         services.AddSingleton<IConnectionMultiplexer>(sp =>

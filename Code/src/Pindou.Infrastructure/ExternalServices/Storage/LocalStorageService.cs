@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Pindou.Infrastructure.Options;
 
 namespace Pindou.Infrastructure.ExternalServices.Storage;
@@ -9,11 +10,11 @@ public class LocalStorageService : IStorageService
     private readonly ILogger<LocalStorageService> _logger;
     private readonly string _rootPath;
 
-    public LocalStorageService(StorageOptions options, ILogger<LocalStorageService> logger)
+    public LocalStorageService(IOptions<StorageOptions> options, ILogger<LocalStorageService> logger)
     {
-        _options = options;
+        _options = options.Value;
         _logger = logger;
-        _rootPath = Path.GetFullPath(options.LocalPath);
+        _rootPath = Path.GetFullPath(_options.LocalPath);
         if (!Directory.Exists(_rootPath))
         {
             Directory.CreateDirectory(_rootPath);

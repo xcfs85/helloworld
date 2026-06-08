@@ -77,16 +77,16 @@ public class DataSeeder
         if (await _categoryRepo.AnyAsync(c => true)) return;
         var cats = new List<TemplateCategory>
         {
-            new() { Name = "节日", Sort = 1 },
-            new() { Name = "卡通", Sort = 2 },
-            new() { Name = "二次元", Sort = 3 },
-            new() { Name = "宠物", Sort = 4 },
-            new() { Name = "风景", Sort = 5 },
-            new() { Name = "像素游戏", Sort = 6 },
-            new() { Name = "国风", Sort = 7 },
-            new() { Name = "表情包", Sort = 8 },
-            new() { Name = "文字", Sort = 9 },
-            new() { Name = "其他", Sort = 10 }
+            new() { Id = Guid.NewGuid().ToString(), Name = "节日", Sort = 1 },
+            new() { Id = Guid.NewGuid().ToString(), Name = "卡通", Sort = 2 },
+            new() { Id = Guid.NewGuid().ToString(), Name = "二次元", Sort = 3 },
+            new() { Id = Guid.NewGuid().ToString(), Name = "宠物", Sort = 4 },
+            new() { Id = Guid.NewGuid().ToString(), Name = "风景", Sort = 5 },
+            new() { Id = Guid.NewGuid().ToString(), Name = "像素游戏", Sort = 6 },
+            new() { Id = Guid.NewGuid().ToString(), Name = "国风", Sort = 7 },
+            new() { Id = Guid.NewGuid().ToString(), Name = "表情包", Sort = 8 },
+            new() { Id = Guid.NewGuid().ToString(), Name = "文字", Sort = 9 },
+            new() { Id = Guid.NewGuid().ToString(), Name = "其他", Sort = 10 }
         };
         await _categoryRepo.InsertRangeAsync(cats);
     }
@@ -96,18 +96,18 @@ public class DataSeeder
         if (await _mardRepo.AnyAsync(c => true)) return;
         var colors = new List<MardColor>
         {
-            new() { ColorNo = "M01", ColorName = "纯白", Rgb = "255,255,255", Category = "white", IsCommon = 1 },
-            new() { ColorNo = "M02", ColorName = "黑色", Rgb = "0,0,0", Category = "black", IsCommon = 1 },
-            new() { ColorNo = "M03", ColorName = "正红", Rgb = "237,28,36", Category = "red", IsCommon = 1 },
-            new() { ColorNo = "M04", ColorName = "橙色", Rgb = "242,101,34", Category = "orange", IsCommon = 1 },
-            new() { ColorNo = "M05", ColorName = "黄色", Rgb = "255,222,23", Category = "yellow", IsCommon = 1 },
-            new() { ColorNo = "M06", ColorName = "草绿", Rgb = "34,177,76", Category = "green", IsCommon = 1 },
-            new() { ColorNo = "M07", ColorName = "天蓝", Rgb = "0,162,232", Category = "blue", IsCommon = 1 },
-            new() { ColorNo = "M08", ColorName = "深蓝", Rgb = "63,72,204", Category = "blue", IsCommon = 1 },
-            new() { ColorNo = "M09", ColorName = "紫色", Rgb = "163,73,164", Category = "purple", IsCommon = 1 },
-            new() { ColorNo = "M10", ColorName = "粉色", Rgb = "255,174,201", Category = "special", IsCommon = 1 },
-            new() { ColorNo = "M11", ColorName = "灰色", Rgb = "128,128,128", Category = "gray", IsCommon = 1 },
-            new() { ColorNo = "M12", ColorName = "浅灰", Rgb = "200,200,200", Category = "gray", IsCommon = 1 }
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M01", ColorName = "纯白", Rgb = "255,255,255", Category = "white", IsCommon = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M02", ColorName = "黑色", Rgb = "0,0,0", Category = "black", IsCommon = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M03", ColorName = "正红", Rgb = "237,28,36", Category = "red", IsCommon = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M04", ColorName = "橙色", Rgb = "242,101,34", Category = "orange", IsCommon = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M05", ColorName = "黄色", Rgb = "255,222,23", Category = "yellow", IsCommon = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M06", ColorName = "草绿", Rgb = "34,177,76", Category = "green", IsCommon = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M07", ColorName = "天蓝", Rgb = "0,162,232", Category = "blue", IsCommon = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M08", ColorName = "深蓝", Rgb = "63,72,204", Category = "blue", IsCommon = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M09", ColorName = "紫色", Rgb = "163,73,164", Category = "purple", IsCommon = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M10", ColorName = "粉色", Rgb = "255,174,201", Category = "special", IsCommon = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M11", ColorName = "灰色", Rgb = "128,128,128", Category = "gray", IsCommon = 1 },
+            new() { Id = Guid.NewGuid().ToString(), ColorNo = "M12", ColorName = "浅灰", Rgb = "200,200,200", Category = "gray", IsCommon = 1 }
         };
         await _mardRepo.InsertRangeAsync(colors);
     }
@@ -117,7 +117,7 @@ public class DataSeeder
         if (await _configRepo.AnyAsync(c => true)) return;
         var configs = new List<SystemConfig>
         {
-            new() { ConfigKey = "app_name", ConfigValue = "拼豆", ConfigType = "string", Description = "应用名称" },
+            new() { Id = Guid.NewGuid().ToString(), ConfigKey = "app_name", ConfigValue = "拼豆", ConfigType = "string", Description = "应用名称" },
             new() { ConfigKey = "user_agreement", ConfigValue = "https://pindou.com/agreement", ConfigType = "string" },
             new() { ConfigKey = "privacy_policy", ConfigValue = "https://pindou.com/privacy", ConfigType = "string" },
             new() { ConfigKey = "default_bead_count", ConfigValue = "841", ConfigType = "number", Description = "默认颗粒数(29x29)" },
@@ -137,7 +137,7 @@ public class DataSeeder
         if (await _productRepo.AnyAsync(p => true)) return;
         var products = new List<MemberProduct>
         {
-            new() { ProductId = "monthly_vip", ProductName = "月度会员", Grade = "month", DurationDays = 30, Price = 19.90m, OriginalPrice = 29.90m, DailyGenerations = 10, Features = "[\"每日10次生成\",\"去广告\",\"专属色号\"]" },
+            new() { Id = Guid.NewGuid().ToString(), ProductId = "monthly_vip", ProductName = "月度会员", Grade = "month", DurationDays = 30, Price = 19.90m, OriginalPrice = 29.90m, DailyGenerations = 10, Features = "[\"每日10次生成\",\"去广告\",\"专属色号\"]" },
             new() { ProductId = "quarterly_vip", ProductName = "季度会员", Grade = "quarter", DurationDays = 90, Price = 49.90m, OriginalPrice = 89.70m, DailyGenerations = 20, Features = "[\"每日20次生成\",\"去广告\",\"专属色号\",\"优先处理\"]" },
             new() { ProductId = "yearly_vip", ProductName = "年度会员", Grade = "year", DurationDays = 365, Price = 199.00m, OriginalPrice = 358.80m, DailyGenerations = 50, Features = "[\"每日50次生成\",\"去广告\",\"专属色号\",\"优先处理\",\"无限收藏\"]" },
             new() { ProductId = "lifetime_vip", ProductName = "终身会员", Grade = "lifetime", DurationDays = 36500, Price = 499.00m, OriginalPrice = 999.00m, DailyGenerations = -1, Features = "[\"无限生成\",\"全部权益\",\"终身有效\"]" }
