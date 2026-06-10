@@ -1,5 +1,6 @@
 using Pindou.Domain.Common;
 using SqlSugar;
+using System.Transactions;
 using System.Linq.Expressions;
 
 namespace Pindou.Infrastructure.Repositories;
@@ -7,43 +8,43 @@ namespace Pindou.Infrastructure.Repositories;
 /// <summary>
 /// 通用仓储接口
 /// </summary>
-public interface IRepository<TEntity> where TEntity : class, new()
+public interface IRepository<TE> where TE : class, new()
 {
     ISqlSugarClient Db { get; }
 
     #region 查询
-    Task<TEntity?> GetByIdAsync(object id);
-    Task<List<TEntity>> GetListAsync(Expression<Func<TEntity, bool>>? where = null);
-    Task<List<TEntity>> GetListAsync(Expression<Func<TEntity, bool>> where, string orderBy, bool isDesc = true);
-    Task<TEntity?> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> where);
-    Task<int> CountAsync(Expression<Func<TEntity, bool>>? where = null);
-    Task<bool> AnyAsync(Expression<Func<TEntity, bool>> where);
+    Task<TE?> GetByIdAsync(object id);
+    Task<List<TE>> GetListAsync(Expression<Func<TE, bool>>? where = null);
+    Task<List<TE>> GetListAsync(Expression<Func<TE, bool>> where, string orderByProperty, bool isDesc = true);
+    Task<TE?> FirstOrDefaultAsync(Expression<Func<TE, bool>> where);
+    Task<int> CountAsync(Expression<Func<TE, bool>>? where = null);
+    Task<bool> AnyAsync(Expression<Func<TE, bool>> where);
     #endregion
 
     #region 分页
-    Task<(List<TEntity> list, int total)> GetPagedAsync(
-        Expression<Func<TEntity, bool>>? where,
+    Task<(List<TE> list, int total)> GetPagedAsync(
+        Expression<Func<TE, bool>>? where,
         int page,
         int size,
-        Expression<Func<TEntity, object>>? orderBy = null,
+        Expression<Func<TE, object>>? orderBy = null,
         bool isDesc = true);
     #endregion
 
     #region 写入
-    Task<object> InsertAsync(TEntity entity);
-    Task<List<object>> InsertRangeAsync(List<TEntity> entities);
-    Task<bool> UpdateAsync(TEntity entity);
-    Task<bool> UpdateRangeAsync(List<TEntity> entities);
+    Task<object> InsertAsync(TE entity);
+    Task<List<object>> InsertRangeAsync(List<TE> entities);
+    Task<bool> UpdateAsync(TE entity);
+    Task<bool> UpdateRangeAsync(List<TE> entities);
     Task<bool> DeleteAsync(object id);
-    Task<bool> DeleteAsync(Expression<Func<TEntity, bool>> where);
-    Task<bool> DeleteRangeAsync(List<TEntity> entities);
+    Task<bool> DeleteAsync(Expression<Func<TE, bool>> where);
+    Task<bool> DeleteRangeAsync(List<TE> entities);
     #endregion
 }
 
 /// <summary>
 /// 通用仓储实现
 /// </summary>
-public class Repository<TEntity> : IRepository<TEntity> where TEntity : class, new()
+public class Repository<TE> : IRepository<TE> where TE : class, new()
 {
     public ISqlSugarClient Db { get; }
 
@@ -52,46 +53,55 @@ public class Repository<TEntity> : IRepository<TEntity> where TEntity : class, n
         Db = dbContext.Db;
     }
 
-    public async Task<TEntity?> GetByIdAsync(object id)
+    public async Task<TE?> GetByIdAsync(object id)
     {
-        return await Db.Queryable<TEntity>().InSingleAsync(id);
+        return await Db.Queryable<TE>().InSingleAsync(id);
     }
 
-    public async Task<List<TEntity>> GetListAsync(Expression<Func<TEntity, bool>>? where = null)
+    public async Task<List<TE>> GetListAsync(Expression<Func<TE, bool>>? where = null)
     {
-        return await Db.Queryable<TEntity>().Where(where ?? (Expression<Func<TEntity, bool>>)(e => true)).ToListAsync();
+        return await Db.Queryable<TE>().Where(where ?? (Expression<Func<TE, bool>>)(e => true)).ToListAsync();
     }
 
-    public async Task<List<TEntity>> GetListAsync(Expression<Func<TEntity, bool>> where, string orderBy, bool isDesc = true)
+    /// <summary>
+    /// 使用表达式树构建 OrderBy，SqlSugar 才能正确映射列名
+    /// </summary>
+    public async Task<List<TE>> GetListAsync(Expression<Func<TE, bool>> where, string orderByProperty, bool isDesc = true)
     {
-        var query = Db.Queryable<TEntity>().Where(where);
-        query = query.OrderBy(orderBy + (isDesc ? " desc" : " asc"));
+        // 使用表达式树构建 OrderBy，避免字符串拼接
+        var parameter = Expression.Parameter(typeof(TE), "x");
+        var property = Expression.Property(parameter, orderByProperty);
+        var converted = Expression.Convert(property, typeof(object));
+        var lambda = Expression.Lambda<Func<TE, object>>(converted, parameter);
+
+        var query = Db.Queryable<TE>().Where(where);
+        query = query.OrderBy(lambda, isDesc ? OrderByType.Desc : OrderByType.Asc);
         return await query.ToListAsync();
     }
 
-    public async Task<TEntity?> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> where)
+    public async Task<TE?> FirstOrDefaultAsync(Expression<Func<TE, bool>> where)
     {
-        return await Db.Queryable<TEntity>().FirstAsync(where);
+        return await Db.Queryable<TE>().FirstAsync(where);
     }
 
-    public async Task<int> CountAsync(Expression<Func<TEntity, bool>>? where = null)
+    public async Task<int> CountAsync(Expression<Func<TE, bool>>? where = null)
     {
-        return await Db.Queryable<TEntity>().CountAsync(where ?? (Expression<Func<TEntity, bool>>)(e => true));
+        return await Db.Queryable<TE>().CountAsync(where ?? (Expression<Func<TE, bool>>)(e => true));
     }
 
-    public async Task<bool> AnyAsync(Expression<Func<TEntity, bool>> where)
+    public async Task<bool> AnyAsync(Expression<Func<TE, bool>> where)
     {
-        return await Db.Queryable<TEntity>().AnyAsync(where);
+        return await Db.Queryable<TE>().AnyAsync(where);
     }
 
-    public async Task<(List<TEntity> list, int total)> GetPagedAsync(
-        Expression<Func<TEntity, bool>>? where,
+    public async Task<(List<TE> list, int total)> GetPagedAsync(
+        Expression<Func<TE, bool>>? where,
         int page,
         int size,
-        Expression<Func<TEntity, object>>? orderBy = null,
+        Expression<Func<TE, object>>? orderBy = null,
         bool isDesc = true)
     {
-        var query = Db.Queryable<TEntity>().Where(where ?? (Expression<Func<TEntity, bool>>)(e => true));
+        var query = Db.Queryable<TE>().Where(where ?? (Expression<Func<TE, bool>>)(e => true));
         if (orderBy != null)
         {
             query = query.OrderBy(orderBy, isDesc ? OrderByType.Desc : OrderByType.Asc);
@@ -101,7 +111,7 @@ public class Repository<TEntity> : IRepository<TEntity> where TEntity : class, n
         return (list, total);
     }
 
-    public async Task<object> InsertAsync(TEntity entity)
+    public async Task<object> InsertAsync(TE entity)
     {
         // 兼容 long/string 主键
         var id = await Db.Insertable(entity).ExecuteReturnIdentityAsync();
@@ -110,7 +120,7 @@ public class Repository<TEntity> : IRepository<TEntity> where TEntity : class, n
             ((dynamic)entity).Id = id;
             return id;
         }
-        // 当主键为 string（UUID）或非自增时，使用 InsertReturningEntity / 直接拿实体上的 Id
+        // 当主键为 string（UUID）或非自增时，尝试使用 ExecuteReturnEntityAsync
         try
         {
             var inserted = await Db.Insertable(entity).ExecuteReturnEntityAsync();
@@ -123,34 +133,34 @@ public class Repository<TEntity> : IRepository<TEntity> where TEntity : class, n
         }
     }
 
-    public async Task<List<object>> InsertRangeAsync(List<TEntity> entities)
+    public async Task<List<object>> InsertRangeAsync(List<TE> entities)
     {
         // 兼容 long/string 主键：使用 ExecuteCommandAsync 让库自行处理主键生成
         var count = await Db.Insertable(entities).ExecuteCommandAsync();
         return entities.Select(e => (object)((dynamic)e).Id!).ToList();
     }
 
-    public async Task<bool> UpdateAsync(TEntity entity)
+    public async Task<bool> UpdateAsync(TE entity)
     {
         return await Db.Updateable(entity).ExecuteCommandHasChangeAsync();
     }
 
-    public async Task<bool> UpdateRangeAsync(List<TEntity> entities)
+    public async Task<bool> UpdateRangeAsync(List<TE> entities)
     {
         return await Db.Updateable(entities).ExecuteCommandHasChangeAsync();
     }
 
     public async Task<bool> DeleteAsync(object id)
     {
-        return await Db.Deleteable<TEntity>().In(id).ExecuteCommandAsync() > 0;
+        return await Db.Deleteable<TE>().In(id).ExecuteCommandAsync() > 0;
     }
 
-    public async Task<bool> DeleteAsync(Expression<Func<TEntity, bool>> where)
+    public async Task<bool> DeleteAsync(Expression<Func<TE, bool>> where)
     {
-        return await Db.Deleteable<TEntity>().Where(where).ExecuteCommandAsync() > 0;
+        return await Db.Deleteable<TE>().Where(where).ExecuteCommandAsync() > 0;
     }
 
-    public async Task<bool> DeleteRangeAsync(List<TEntity> entities)
+    public async Task<bool> DeleteRangeAsync(List<TE> entities)
     {
         return await Db.Deleteable(entities).ExecuteCommandAsync() > 0;
     }
