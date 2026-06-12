@@ -35,7 +35,9 @@ public class DiagramServiceTests
     [Fact]
     public async Task CreateGenerationTaskAsync_ShouldCreateTask()
     {
-        _taskRepoMock.Setup(r => r.InsertAsync(It.IsAny<DiagramTask>())).ReturnsAsync("task1");
+        _taskRepoMock.Setup(r => r.InsertAsync(It.IsAny<DiagramTask>()))
+            .Callback<DiagramTask>(t => t.Id = "task1")
+            .ReturnsAsync("task1");
 
         var request = new CreateDiagramRequest
         {
@@ -57,7 +59,9 @@ public class DiagramServiceTests
             SourceImageUrl = "image.png", Params = "{\"BoardSize\":\"29x29\",\"Difficulty\":\"easy\",\"Style\":\"pixel\"}",
             IsSync = true
         };
-        _taskRepoMock.Setup(r => r.InsertAsync(It.IsAny<DiagramTask>())).ReturnsAsync("task1");
+        _taskRepoMock.Setup(r => r.InsertAsync(It.IsAny<DiagramTask>()))
+            .Callback<DiagramTask>(t => t.Id = "task1")
+            .ReturnsAsync("task1");
         _taskRepoMock.Setup(r => r.GetByIdAsync("task1")).ReturnsAsync(task);
         _taskRepoMock.Setup(r => r.UpdateAsync(It.IsAny<DiagramTask>())).ReturnsAsync(true);
         _aiServiceMock.Setup(a => a.GenerateSyncAsync(It.IsAny<AiGenerationRequest>()))
@@ -69,7 +73,9 @@ public class DiagramServiceTests
                     new ColorMapping { ColorIndex = 1, ColorCode = "M01", ColorName = "Red", Rgb = "FF0000", BeadCount = 50, Percentage = 50 }
                 }
             });
-        _diagramRepoMock.Setup(r => r.InsertAsync(It.IsAny<Diagram>())).ReturnsAsync("d1");
+        _diagramRepoMock.Setup(r => r.InsertAsync(It.IsAny<Diagram>()))
+            .Callback<Diagram>(d => d.Id = "d1")
+            .ReturnsAsync("d1");
         _colorInfoRepoMock.Setup(r => r.InsertRangeAsync(It.IsAny<List<ColorInfo>>()))
             .ReturnsAsync(new List<object> { "c1" });
 
@@ -137,7 +143,9 @@ public class DiagramServiceTests
             SourceImageUrl = "image.png", Params = "{\"BoardSize\":\"29x29\",\"Difficulty\":\"easy\",\"Style\":\"pixel\"}",
             IsSync = true
         };
-        _taskRepoMock.Setup(r => r.InsertAsync(It.IsAny<DiagramTask>())).ReturnsAsync("task1");
+        _taskRepoMock.Setup(r => r.InsertAsync(It.IsAny<DiagramTask>()))
+            .Callback<DiagramTask>(t => t.Id = "task1")
+            .ReturnsAsync("task1");
         _taskRepoMock.Setup(r => r.GetByIdAsync("task1")).ReturnsAsync(task);
         _taskRepoMock.Setup(r => r.UpdateAsync(It.IsAny<DiagramTask>())).ReturnsAsync(true);
         _aiServiceMock.Setup(a => a.GenerateSyncAsync(It.IsAny<AiGenerationRequest>()))
@@ -146,7 +154,9 @@ public class DiagramServiceTests
                 Success = true, DiagramId = "d1", PreviewUrl = "preview.png",
                 BeadCount = 100, ColorCount = 5
             });
-        _diagramRepoMock.Setup(r => r.InsertAsync(It.IsAny<Diagram>())).ReturnsAsync("d1");
+        _diagramRepoMock.Setup(r => r.InsertAsync(It.IsAny<Diagram>()))
+            .Callback<Diagram>(d => d.Id = "d1")
+            .ReturnsAsync("d1");
 
         var request = new CreateDiagramRequest
         {
@@ -166,7 +176,9 @@ public class DiagramServiceTests
             SourceImageUrl = "image.png", Params = "{\"BoardSize\":\"29x29\",\"Difficulty\":\"easy\",\"Style\":\"pixel\"}",
             ErrorMessage = "AI生成失败", IsSync = true
         };
-        _taskRepoMock.Setup(r => r.InsertAsync(It.IsAny<DiagramTask>())).ReturnsAsync("task1");
+        _taskRepoMock.Setup(r => r.InsertAsync(It.IsAny<DiagramTask>()))
+            .Callback<DiagramTask>(t => t.Id = "task1")
+            .ReturnsAsync("task1");
         _taskRepoMock.SetupSequence(r => r.GetByIdAsync("task1"))
             .ReturnsAsync((DiagramTask?)null) // first call in ProcessTaskAsync
             .ReturnsAsync(task); // second call after ProcessTaskAsync

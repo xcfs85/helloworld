@@ -37,7 +37,7 @@ async function onAdd() {
 async function onSend(p: Push) {
   try {
     await ElMessageBox.confirm(`确定立即发送推送「${p.title}」？`, '发送推送', { type: 'warning' })
-    await sendPush(p.id)
+    await sendPush({ title: p.title, content: p.content, target_type: p.audience })
     ElMessage.success('已加入发送队列')
     load()
   } catch {}

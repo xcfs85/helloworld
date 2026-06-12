@@ -15,12 +15,22 @@ const pageSize = ref(20)
 
 const filter = reactive({ keyword: '', level: 'all', type: 'all' })
 const showAdd = ref(false)
-const newWord = reactive({ word: '', level: 'severe', type: 'political', replacement: '***' })
+const newWord = reactive({ word: '', level: 1, type: 'political', replacement: '***' })
+
+const levelNameMap: Record<number, string> = { 1: 'severe', 2: 'medium', 3: 'minor' }
+const nameToLevelMap: Record<string, number> = { severe: 1, medium: 2, minor: 3 }
 
 async function load() {
   loading.value = true
   try {
-    const res: any = await listSensitiveWords({ ...filter, page: page.value, page_size: pageSize.value })
+    const params: any = {
+      page: page.value,
+      page_size: pageSize.value,
+      keyword: filter.keyword,
+      type: filter.type
+    }
+    if (filter.level !== 'all') params.level = nameToLevelMap[filter.level] ?? 1
+    const res: any = await listSensitiveWords(params)
     list.value = res.list
     total.value = res.total
   } finally { loading.value = false }
@@ -28,10 +38,12 @@ async function load() {
 
 async function onAdd() {
   if (!newWord.word) { ElMessage.warning('请输入敏感词'); return }
-  await addSensitiveWord(newWord)
+  const payload: any = { word: newWord.word, level: newWord.level, type: newWord.type }
+  if (newWord.replacement) payload.replace_word = newWord.replacement
+  await addSensitiveWord(payload)
   ElMessage.success('已添加')
   showAdd.value = false
-  Object.assign(newWord, { word: '', level: 'severe', type: 'political', replacement: '***' })
+  Object.assign(newWord, { word: '', level: 1, type: 'political', replacement: '***' })
   load()
 }
 async function onDelete(w: SensitiveWord) {
@@ -105,12 +117,12 @@ onMounted(load)
             <td><span class="ck"></span></td>
             <td style="font-weight: 600; color: var(--ink)">{{ w.word }}</td>
             <td>
-              <StatusTag :variant="{ severe: 'danger', medium: 'warn', minor: 'info' }[w.level]">
+              <StatusTag :variant="({ severe: 'danger', medium: 'warn', minor: 'info' } as any)[w.level]">
                 {{ { severe: '严重', medium: '中等', minor: '轻微' }[w.level] }}
               </StatusTag>
             </td>
             <td>
-              <StatusTag :variant="{ political: 'danger', porn: 'danger', violence: 'danger', ads: 'warn', copyright: 'purple', other: 'neutral' }[w.type]">
+              <StatusTag :variant="({ political: 'danger', porn: 'danger', violence: 'danger', ads: 'warn', copyright: 'purple', other: 'neutral' } as any)[w.type]">
                 {{ { political: '政治', porn: '色情', violence: '暴恐', ads: '广告', copyright: '版权', other: '其他' }[w.type] }}
               </StatusTag>
             </td>

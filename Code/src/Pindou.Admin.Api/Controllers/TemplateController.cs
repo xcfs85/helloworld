@@ -141,8 +141,8 @@ public class TemplateCategoryController : ControllerBase
     [OperationLog("创建模板分类", SaveParams = true)]
     public async Task<ApiResponse<string>> Create([FromBody] CreateTemplateCategoryRequest request)
     {
-        var data = await _templateService.GetCategoriesAsync();
-        return ApiResponse<string>.Ok(string.Empty);
+        var id = await _templateService.CreateCategoryAsync(request.Name, request.Icon, request.Sort);
+        return ApiResponse<string>.Ok(id);
     }
 
     /// <summary>更新分类</summary>
@@ -151,7 +151,7 @@ public class TemplateCategoryController : ControllerBase
     [OperationLog("更新模板分类", SaveParams = true)]
     public async Task<ApiResponse> Update(string id, [FromBody] CreateTemplateCategoryRequest request)
     {
-        var data = await _templateService.GetCategoriesAsync();
+        await _templateService.UpdateCategoryAsync(id, request.Name, request.Icon, request.Sort);
         return ApiResponse.Ok();
     }
 
@@ -161,7 +161,7 @@ public class TemplateCategoryController : ControllerBase
     [OperationLog("删除模板分类")]
     public async Task<ApiResponse> Delete(string id)
     {
-        var data = await _templateService.GetCategoriesAsync();
+        await _templateService.DeleteCategoryAsync(id);
         return ApiResponse.Ok();
     }
 }

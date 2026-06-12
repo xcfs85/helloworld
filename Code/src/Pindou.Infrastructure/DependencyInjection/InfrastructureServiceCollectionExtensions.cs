@@ -47,7 +47,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
 
         // 数据库
-        services.AddSingleton(sp =>
+        services.AddScoped(sp =>
         {
             var options = configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>() ?? new DatabaseOptions();
             return new PindouDbContext(options);

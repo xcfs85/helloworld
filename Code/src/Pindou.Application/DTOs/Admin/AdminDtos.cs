@@ -36,10 +36,22 @@ public class CaptchaResponse
     public string CaptchaImage { get; set; } = string.Empty;
 }
 
-public class AdminUserQuery : PageRequest
+public class AdminUserQuery
 {
-    public long? RoleId { get; set; }
-    public int? Status { get; set; }
+    /// <summary>页码(从1开始)</summary>
+    public int page { get; set; } = 1;
+
+    /// <summary>每页条数</summary>
+    public int page_size { get; set; } = 20;
+
+    /// <summary>角色ID</summary>
+    public long? role_id { get; set; }
+
+    /// <summary>关键词(用户名/昵称)</summary>
+    public string? keyword { get; set; }
+
+    /// <summary>状态(1=启用, 0=禁用, all=全部)</summary>
+    public string? status { get; set; }
 }
 
 public class AdminUserListDto
@@ -83,6 +95,7 @@ public class RoleDto
     public string Code { get; set; } = string.Empty;
     public string? Description { get; set; }
     public List<string> Permissions { get; set; } = new();
+    public int UserCount { get; set; }
     public DateTime CreateTime { get; set; }
 }
 

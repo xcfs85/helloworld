@@ -133,7 +133,7 @@ public class SystemConfigServiceTests
         {
             new SystemConfig { Id = "c1", ConfigKey = "key1", ConfigValue = "val1", ConfigType = "string", Status = 1, CreateTime = DateTime.Now }
         };
-        _configRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SystemConfig, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _configRepoMock.Setup(r => r.GetListAsync())
             .ReturnsAsync(configs);
 
         var result = await _systemConfigService.GetAllAsync();
@@ -193,7 +193,7 @@ public class SystemConfigServiceTests
     public async Task GetAllMardColorsAsync_ShouldReturnColors()
     {
         _cacheMock.Setup(c => c.GetAsync<List<MardColorDto>>("sys:mard:all")).ReturnsAsync((List<MardColorDto>?)null);
-        _mardRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<MardColor, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _mardRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<MardColor, bool>>>()))
             .ReturnsAsync(new List<MardColor>
             {
                 new MardColor { Id = "c1", ColorNo = "M01", ColorName = "Red", Rgb = "FF0000", IsCommon = 1, Status = 1 }
@@ -230,7 +230,7 @@ public class SystemConfigServiceTests
     [Fact]
     public async Task GetAllBeadKitsAsync_ShouldReturnKits()
     {
-        _kitRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<BeadKit, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _kitRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<BeadKit, bool>>>()))
             .ReturnsAsync(new List<BeadKit>
             {
                 new BeadKit { Id = "k1", KitId = "kit1", KitName = "套装1", Brand = "MARD", ColorCount = 24, BeadCount = 1000, Price = 99.9m, Status = 1 }
@@ -246,7 +246,7 @@ public class SystemConfigServiceTests
     [Fact]
     public async Task GetAllBeadKitsAsync_ShouldFilterByColorCount()
     {
-        _kitRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<BeadKit, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _kitRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<BeadKit, bool>>>()))
             .ReturnsAsync(new List<BeadKit>());
 
         var result = await _systemConfigService.GetAllBeadKitsAsync(48);

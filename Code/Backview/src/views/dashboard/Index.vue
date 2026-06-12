@@ -2,42 +2,104 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import PageHead from '@/components/PageHead.vue'
-import { getOverview } from '@/api/stats'
+import { getOverview, getTrends, type DailyStats } from '@/api/stats'
 
 const router = useRouter()
 const overview = ref<any>(null)
+const trendData = ref<{ dates: string[]; dau: number[]; generation: number[]; posts: number[] } | null>(null)
+const loading = ref(false)
 
-const kpis = computed(() => {
-  if (!overview.value) return []
+interface KpiItem {
+  key: string
+  label: string
+  value: number
+  delta: number
+  unit?: string
+  prefix?: string
+  decimals?: number
+}
+
+/** 从最新一天与上一天的 daily_stats 中计算指标和环比 */
+function buildKpi(label: string, key: string, pick: (d: DailyStats) => number, unit = '', prefix = '', decimals = 0): KpiItem {
+  const daily = (overview.value?.daily_stats || []) as DailyStats[]
+  const latest = daily[daily.length - 1]
+  const prev = daily[daily.length - 2]
+  const cur = latest ? pick(latest) : 0
+  const yest = prev ? pick(prev) : 0
+  const delta = yest === 0 ? 0 : +(((cur - yest) / yest) * 100).toFixed(1)
+  return { key, label, value: cur, delta, unit, prefix, decimals }
+}
+
+const kpis = computed<KpiItem[]>(() => {
+  const daily = (overview.value?.daily_stats || []) as DailyStats[]
+  if (!overview.value || daily.length === 0) {
+    // 数据未就绪时返回占位，避免模板渲染时访问 undefined.value
+    const placeholders = [
+      'DAU 日活用户', '新增用户', '活跃率', '次日留存',
+      'AI 生成次数', '新增帖子', '互动量（点赞+评论+收藏）', '会员收入'
+    ]
+    return placeholders.map((label, i) => ({
+      key: 'ph_' + i,
+      label,
+      value: 0,
+      delta: 0
+    }))
+  }
   return [
-    { label: 'DAU 日活用户', key: 'dau', unit: '' },
-    { label: '新增用户', key: 'new_users', unit: '' },
-    { label: '活跃率', key: 'active_rate', unit: '%' },
-    { label: '次日留存', key: 'retention', unit: '%' },
-    { label: 'AI 生成次数', key: 'ai_generation', unit: '' },
-    { label: '新增帖子', key: 'posts', unit: '' },
-    { label: '互动量（点赞+评论+收藏）', key: 'interactions', unit: '' },
-    { label: '会员收入', key: 'revenue', unit: '', prefix: '¥ ' }
-  ].map(k => ({
-    ...k,
-    value: overview.value[k.key].value,
-    delta: overview.value[k.key].delta,
-    trend: overview.value[k.key].trend
-  }))
+    buildKpi('DAU 日活用户', 'dau', d => d.dau ?? 0),
+    buildKpi('新增用户', 'new_users', d => d.new_user_count ?? 0),
+    buildKpi('活跃率', 'active_rate', d => {
+      // 活跃率 = 当日 DAU / 总用户数
+      const total = overview.value.total_users || 0
+      if (!total) return 0
+      return +(((d.dau || 0) / total) * 100).toFixed(1)
+    }, '%'),
+    buildKpi('次日留存', 'retention', d => Number(d.retention_1d ?? 0), '%'),
+    buildKpi('AI 生成次数', 'ai_generation', d => d.generation_count ?? 0),
+    buildKpi('新增帖子', 'posts', d => d.post_count ?? 0),
+    buildKpi('互动量（点赞+评论+收藏）', 'interactions', d => (d.like_count ?? 0) + (d.comment_count ?? 0) + (d.favorite_count ?? 0)),
+    buildKpi('会员收入', 'revenue', d => Number(d.member_revenue ?? 0), '', '¥ ', 2)
+  ]
 })
 
-const trendData = ref<any>(null)
+function formatKpi(k: KpiItem): string {
+  const n = Number(k.value || 0)
+  if (k.decimals) return n.toFixed(k.decimals)
+  return n.toLocaleString()
+}
 
 onMounted(async () => {
-  overview.value = await getOverview()
-  // 加载趋势图
-  const { getTrend } = await import('@/api/stats')
-  const dau = await getTrend('dau', 14)
-  const gen = await getTrend('generation', 14)
-  const posts = await getTrend('posts', 14)
-  trendData.value = { dates: dau.dates, dau: dau.values, generation: gen.values, posts: posts.values }
-  drawTrendChart()
-  drawDonut()
+  loading.value = true
+  try {
+    // 计算最近 14 天日期范围
+    const end = new Date()
+    const start = new Date()
+    start.setDate(start.getDate() - 13)
+    const fmt = (d: Date) => d.toISOString().split('T')[0]
+    const range = { start: fmt(start), end: fmt(end) }
+
+    // 并行请求概览 + 趋势
+    const [ov, trends] = await Promise.all([
+      getOverview(range),
+      getTrends(range)
+    ])
+    overview.value = ov
+
+    const list: DailyStats[] = Array.isArray(trends) ? trends : (ov?.daily_stats || [])
+    trendData.value = {
+      dates: list.map(d => (d.stat_date || '').slice(5)), // MM-DD
+      dau: list.map(d => d.dau ?? 0),
+      generation: list.map(d => d.generation_count ?? 0),
+      posts: list.map(d => d.post_count ?? 0)
+    }
+
+    drawTrendChart()
+    drawDonut()
+  } catch (e) {
+    console.error('[Dashboard] 加载数据失败', e)
+  } finally {
+    loading.value = false
+  }
 })
 
 function drawTrendChart() {
@@ -90,6 +152,13 @@ function drawTrendChart() {
 function drawDonut() {
   const el = document.getElementById('donutChart')
   if (!el) return
+  // 注册方式分布由 register_method 接口获取，目前先用接口返回或保留静态占位
+  const registerData = [
+    { value: 45, name: '微信', itemStyle: { color: '#4FBB8A' } },
+    { value: 35, name: '手机号', itemStyle: { color: '#FF7A5A' } },
+    { value: 15, name: 'Apple', itemStyle: { color: '#9A7FCC' } },
+    { value: 5, name: '游客', itemStyle: { color: '#B0A599' } }
+  ]
   import('echarts').then(echarts => {
     const chart = echarts.init(el)
     chart.setOption({
@@ -98,12 +167,7 @@ function drawDonut() {
         radius: ['60%', '85%'],
         avoidLabelOverlap: false,
         label: { show: false },
-        data: [
-          { value: 45, name: '微信', itemStyle: { color: '#4FBB8A' } },
-          { value: 35, name: '手机号', itemStyle: { color: '#FF7A5A' } },
-          { value: 15, name: 'Apple', itemStyle: { color: '#9A7FCC' } },
-          { value: 5, name: '游客', itemStyle: { color: '#B0A599' } }
-        ]
+        data: registerData
       }]
     })
     window.addEventListener('resize', () => chart.resize())
@@ -142,7 +206,7 @@ const systemStatus = [
     <PageHead
       :crumbs="[{ label: '运营总览' }, { label: '核心指标看板' }]"
       title="核心指标"
-      sub="数据更新于 2026-06-07 10:32 · 每 5 分钟刷新"
+      :sub="loading ? '数据加载中…' : '数据更新于 ' + (trendData?.dates?.slice(-1)[0] || '今日') + ' · 每 5 分钟刷新'"
     >
       <template #actions>
         <div class="date-range">
@@ -169,7 +233,7 @@ const systemStatus = [
       <div class="kpi-row">
         <div v-for="k in kpis.slice(0, 4)" :key="k.key" class="kpi-card">
           <div class="kpi-lbl">{{ k.label }}</div>
-          <div class="kpi">{{ k.prefix || '' }}{{ k.value.toLocaleString() }}{{ k.unit }}</div>
+          <div class="kpi">{{ k.prefix || '' }}{{ formatKpi(k) }}{{ k.unit }}</div>
           <div class="kpi-foot">
             <div class="kpi-sub">
               <span :class="k.delta >= 0 ? 'up' : 'down'">{{ k.delta >= 0 ? '↑' : '↓' }} {{ Math.abs(k.delta) }}%</span>
@@ -181,7 +245,7 @@ const systemStatus = [
       <div class="kpi-row">
         <div v-for="k in kpis.slice(4)" :key="k.key" class="kpi-card">
           <div class="kpi-lbl">{{ k.label }}</div>
-          <div class="kpi">{{ k.prefix || '' }}{{ k.value.toLocaleString() }}{{ k.unit }}</div>
+          <div class="kpi">{{ k.prefix || '' }}{{ formatKpi(k) }}{{ k.unit }}</div>
           <div class="kpi-foot">
             <div class="kpi-sub">
               <span :class="k.delta >= 0 ? 'up' : 'down'">{{ k.delta >= 0 ? '↑' : '↓' }} {{ Math.abs(k.delta) }}%</span>

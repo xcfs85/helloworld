@@ -39,7 +39,7 @@ public class AdminUserServiceTests
             .ReturnsAsync((users, 1));
         _roleRepoMock.Setup(r => r.GetByIdAsync(1L)).ReturnsAsync(role);
 
-        var query = new AdminUserQuery { Page = 1, Size = 10 };
+        var query = new AdminUserQuery { page = 1, page_size = 10 };
         var result = await _adminUserService.GetListAsync(query);
 
         Assert.NotNull(result);
@@ -62,7 +62,7 @@ public class AdminUserServiceTests
             .ReturnsAsync((new List<AdminUser>(), 0));
         _roleRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<long>())).ReturnsAsync((Role?)null);
 
-        var query = new AdminUserQuery { Page = 1, Size = 10, RoleId = 2 };
+        var query = new AdminUserQuery { page = 1, page_size = 10, role_id = 2 };
         var result = await _adminUserService.GetListAsync(query);
 
         Assert.Equal(0, result.Total);
@@ -79,7 +79,7 @@ public class AdminUserServiceTests
                 It.IsAny<bool>()))
             .ReturnsAsync((new List<AdminUser>(), 0));
 
-        var query = new AdminUserQuery { Page = 1, Size = 10, Status = 0 };
+        var query = new AdminUserQuery { page = 1, page_size = 10, status = "0" };
         var result = await _adminUserService.GetListAsync(query);
 
         Assert.Equal(0, result.Total);
@@ -126,7 +126,9 @@ public class AdminUserServiceTests
     public async Task CreateAsync_ShouldCreateUser()
     {
         _adminUserRepoMock.Setup(r => r.AnyAsync(It.IsAny<Expression<Func<AdminUser, bool>>>())).ReturnsAsync(false);
-        _adminUserRepoMock.Setup(r => r.InsertAsync(It.IsAny<AdminUser>())).ReturnsAsync(1L);
+        _adminUserRepoMock.Setup(r => r.InsertAsync(It.IsAny<AdminUser>()))
+            .Callback<AdminUser>(u => u.Id = 1L)
+            .ReturnsAsync(1L);
 
         var request = new CreateAdminUserRequest
         {

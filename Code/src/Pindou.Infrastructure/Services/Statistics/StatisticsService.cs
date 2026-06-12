@@ -104,12 +104,14 @@ public class StatisticsService : IStatisticsService
 
     public async Task<List<DailyStatsDto>> GetRangeStatsAsync(DateTime start, DateTime end)
     {
-        var stats = await _statsRepo.GetListAsync(
+        var stats = await _statsRepo.GetPagedAsync(
             s => s.StatDate >= start.Date && s.StatDate <= end.Date,
-            nameof(DailyStats.StatDate),
+            1,
+            1000, // 获取足够多的记录
+            s => s.StatDate,
             false);
 
-        return stats.Select(MapToDto).ToList();
+        return stats.list.Select(MapToDto).ToList();
     }
 
     public async Task<OverviewDto> GetOverviewAsync(DateTime? start, DateTime? end)

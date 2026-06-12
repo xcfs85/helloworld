@@ -11,12 +11,14 @@ namespace Pindou.Tests.Services;
 public class RoleServiceTests
 {
     private readonly Mock<IRepository<Role>> _roleRepoMock;
+    private readonly Mock<IRepository<AdminUser>> _adminUserRepoMock;
     private readonly RoleService _roleService;
 
     public RoleServiceTests()
     {
         _roleRepoMock = new Mock<IRepository<Role>>();
-        _roleService = new RoleService(_roleRepoMock.Object);
+        _adminUserRepoMock = new Mock<IRepository<AdminUser>>();
+        _roleService = new RoleService(_roleRepoMock.Object, _adminUserRepoMock.Object);
     }
 
     #region GetListAsync Tests
@@ -138,7 +140,9 @@ public class RoleServiceTests
     public async Task CreateAsync_ShouldCreateRole()
     {
         _roleRepoMock.Setup(r => r.AnyAsync(It.IsAny<Expression<Func<Role, bool>>>())).ReturnsAsync(false);
-        _roleRepoMock.Setup(r => r.InsertAsync(It.IsAny<Role>())).ReturnsAsync(1L);
+        _roleRepoMock.Setup(r => r.InsertAsync(It.IsAny<Role>()))
+            .Callback<Role>(r => r.Id = 1L)
+            .ReturnsAsync(1L);
 
         var request = new CreateRoleRequest
         {

@@ -4,7 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHead from '@/components/PageHead.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
-import { listTags, deleteTag } from '@/api/template'
+import { listTags, deleteTag, addTag } from '@/api/template'
 import type { Tag } from '@/types'
 
 const loading = ref(false)
@@ -30,6 +30,20 @@ async function onDelete(t: Tag) {
     await ElMessageBox.confirm(`确定删除标签「${t.name}」？`, '提示', { type: 'warning' })
     await deleteTag(t.id)
     ElMessage.success('已删除')
+    load()
+  } catch {}
+}
+
+async function onSave() {
+  if (!newTag.value.name.trim()) {
+    ElMessage.warning('请输入标签名')
+    return
+  }
+  try {
+    await addTag({ name: newTag.value.name, category: newTag.value.category_id })
+    ElMessage.success('创建成功')
+    showAdd.value = false
+    newTag.value = { name: '', category_id: '1', desc: '' }
     load()
   } catch {}
 }
@@ -108,7 +122,7 @@ onMounted(load)
       </div>
       <template #footer>
         <el-button @click="showAdd = false">取消</el-button>
-        <el-button type="primary" @click="showAdd = false; ElMessage.success('已创建'); newTag = { name: '', category_id: '1', desc: '' }">保存</el-button>
+        <el-button type="primary" @click="onSave">保存</el-button>
       </template>
     </el-dialog>
   </div>

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import PageHead from '@/components/PageHead.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
-import { listMembers, openMember } from '@/api/user'
+import { listMembers, openMember, getMemberLevelStats, getMemberStats } from '@/api/user'
 import type { Member } from '@/types'
 
 const loading = ref(false)
@@ -13,36 +13,123 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
 
+// 侧边栏统计（从接口获取）
+const sideLevels = ref([
+  { label: '全部', value: 'all', count: 0 },
+  { label: 'VIP1', value: 'VIP1', count: 0 },
+  { label: 'VIP2', value: 'VIP2', count: 0 },
+  { label: 'VIP3', value: 'VIP3', count: 0 },
+  { label: 'SVIP', value: 'SVIP', count: 0 }
+])
+
+// 加载会员统计
+async function loadStats() {
+  try {
+    // 专门统计接口：拉取各等级会员数量
+    const levelRes: any = await getMemberLevelStats()
+    const levelData = levelRes.data || levelRes
+    const levelMap: Record<string, number> = {}
+    if (levelData.level_counts) {
+      for (const item of levelData.level_counts) {
+        levelMap[item.level] = item.count
+      }
+    }
+    sideLevels.value[0].count = levelData.total || 0
+    sideLevels.value[1].count = levelMap['VIP1'] || 0
+    sideLevels.value[2].count = levelMap['VIP2'] || 0
+    sideLevels.value[3].count = levelMap['VIP3'] || 0
+    sideLevels.value[4].count = levelMap['SVIP'] || 0
+
+    // 综合统计：拉取到期状态相关数量
+    const res: any = await getMemberStats()
+    const stats = res.data || res
+    expiringSoonCount.value = stats.expiring_soon_count || 0
+    expiring30dCount.value = stats.expiring_30d_count || 0
+    longTermCount.value = stats.long_term_count || 0
+    expiredCount.value = stats.expired_count || 0
+
+    // 支付渠道统计
+    if (stats.channel_counts) {
+      for (const item of stats.channel_counts) {
+        if (item.channel in channelCounts) {
+          channelCounts[item.channel as keyof typeof channelCounts] = item.count
+        }
+      }
+    }
+  } catch (error) {
+    console.error('加载会员统计失败:', error)
+  }
+}
+
+// 到期状态各分类数量
+const expiringSoonCount = ref(0)
+const expiring30dCount = ref(0)
+const longTermCount = ref(0)
+const expiredCount = ref(0)
+
+// 支付方式各分类数量
+const channelCounts = reactive<Record<string, number>>({ wechat: 0, alipay: 0, appstore: 0, backend: 0 })
+
 const filter = reactive({ keyword: '', level: 'all', expire: 'all', pay_channel: 'all' })
 
-const sideLevels = [
-  { label: '全部', value: 'all', count: 312 },
-  { label: 'VIP1', value: 'VIP1', count: 182 },
-  { label: 'VIP2', value: 'VIP2', count: 86 },
-  { label: 'VIP3', value: 'VIP3', count: 38 },
-  { label: 'SVIP', value: 'SVIP', count: 6 }
-]
+// 将后端 UserListDto 转换为前端 Member 类型
+function transformToMember(item: any): Member {
+  return {
+    id: item.id || '',
+    user_id: item.id || '',
+    user_nickname: item.nickname || '',
+    user_avatar: item.avatar,
+    level: (item.member_level as Member['level']) || 'VIP1',
+    expire_time: item.member_expire_time ? formatDate(item.member_expire_time) : '',
+    auto_renew: item.auto_renew || false,
+    total_paid: item.total_paid || 0,
+    pay_channel: (item.pay_channel as Member['pay_channel']) || 'backend',
+    create_time: item.create_time ? formatDate(item.create_time) : '',
+    // 兼容字段
+    nickname: item.nickname,
+    is_member: item.is_member,
+    member_expire_time: item.member_expire_time ? formatDate(item.member_expire_time) : '',
+    member_level: item.member_level
+  }
+}
+
+function formatDate(date: string | Date): string {
+  if (!date) return ''
+  const d = new Date(date)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 async function load() {
   loading.value = true
   try {
     const res: any = await listMembers({ ...filter, page: page.value, page_size: pageSize.value })
-    list.value = res.list
-    total.value = res.total
-  } finally { loading.value = false }
+    // 转换后端数据为前端格式
+    list.value = (res.list || []).map(transformToMember)
+    total.value = res.total || 0
+  } catch (error) {
+    console.error('加载会员列表失败:', error)
+  } finally {
+    loading.value = false
+  }
 }
 function search() { page.value = 1; load() }
 function reset() { filter.keyword = ''; filter.level = 'all'; filter.expire = 'all'; filter.pay_channel = 'all'; search() }
 
 function remainDays(expire: string) {
+  if (!expire) return 0
   return Math.ceil((new Date(expire).getTime() - Date.now()) / 86400000)
 }
 
-async function onOpen() {
-  ElMessage.success('手动开通会员已记录')
+// 会员等级映射
+const levelMap: Record<string, string> = {
+  'VIP1': 'VIP1', 'VIP2': 'VIP2', 'VIP3': 'VIP3', 'SVIP': 'SVIP'
 }
 
-onMounted(load)
+async function onOpen() {
+  ElMessage.success('手动开通会员功能开发中')
+}
+
+onMounted(() => { load(); loadStats() })
 </script>
 
 <template>
@@ -55,15 +142,17 @@ onMounted(load)
           <span class="badge">{{ l.count }}</span>
         </div>
         <div class="aside-title" style="margin-top: 14px">到期状态</div>
-        <div class="aside-item" @click="filter.expire = 'expired'; search()">已过期</div>
-        <div class="aside-item" @click="filter.expire = '7d'; search()">7 天内到期 <span class="badge" style="background: var(--warn-soft); color: var(--warn)">28</span></div>
-        <div class="aside-item" @click="filter.expire = '30d'; search()">30 天内到期</div>
-        <div class="aside-item" @click="filter.expire = 'long'; search()">长期有效</div>
+        <div class="aside-item" :class="{ active: filter.expire === 'all' }" @click="filter.expire = 'all'; search()">全部</div>
+        <div class="aside-item" :class="{ active: filter.expire === 'expired' }" @click="filter.expire = 'expired'; search()">已过期 <span class="badge" style="background: var(--danger-soft, #ffe5e5); color: var(--danger, #d33)">{{ expiredCount }}</span></div>
+        <div class="aside-item" :class="{ active: filter.expire === '7d' }" @click="filter.expire = '7d'; search()">7 天内到期 <span class="badge" style="background: var(--warn-soft); color: var(--warn)">{{ expiringSoonCount }}</span></div>
+        <div class="aside-item" :class="{ active: filter.expire === '30d' }" @click="filter.expire = '30d'; search()">30 天内到期 <span class="badge">{{ expiring30dCount }}</span></div>
+        <div class="aside-item" :class="{ active: filter.expire === 'long' }" @click="filter.expire = 'long'; search()">长期有效 <span class="badge">{{ longTermCount }}</span></div>
         <div class="aside-title" style="margin-top: 14px">支付方式</div>
-        <div class="aside-item">微信支付</div>
-        <div class="aside-item">支付宝</div>
-        <div class="aside-item">App Store</div>
-        <div class="aside-item">后台开通</div>
+        <div class="aside-item" :class="{ active: filter.pay_channel === 'all' }" @click="filter.pay_channel = 'all'; search()">全部</div>
+        <div class="aside-item" :class="{ active: filter.pay_channel === 'wechat' }" @click="filter.pay_channel = 'wechat'; search()">微信支付 <span class="badge">{{ channelCounts.wechat }}</span></div>
+        <div class="aside-item" :class="{ active: filter.pay_channel === 'alipay' }" @click="filter.pay_channel = 'alipay'; search()">支付宝 <span class="badge">{{ channelCounts.alipay }}</span></div>
+        <div class="aside-item" :class="{ active: filter.pay_channel === 'appstore' }" @click="filter.pay_channel = 'appstore'; search()">App Store <span class="badge">{{ channelCounts.appstore }}</span></div>
+        <div class="aside-item" :class="{ active: filter.pay_channel === 'backend' }" @click="filter.pay_channel = 'backend'; search()">后台开通 <span class="badge">{{ channelCounts.backend }}</span></div>
       </aside>
 
       <div class="main">

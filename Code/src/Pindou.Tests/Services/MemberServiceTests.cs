@@ -56,7 +56,9 @@ public class MemberServiceTests
         var product = new MemberProduct { Id = "p1", ProductId = "prod_month", ProductName = "月度会员", Price = 29.9m, Status = 1 };
         _productRepoMock.Setup(r => r.FirstOrDefaultAsync(It.IsAny<Expression<Func<MemberProduct, bool>>>()))
             .ReturnsAsync(product);
-        _orderRepoMock.Setup(r => r.InsertAsync(It.IsAny<Order>())).ReturnsAsync("o1");
+        _orderRepoMock.Setup(r => r.InsertAsync(It.IsAny<Order>()))
+            .Callback<Order>(o => o.Id = "o1")
+            .ReturnsAsync("o1");
 
         var request = new CreateOrderRequest { ProductId = "prod_month", ProductType = "member" };
         var result = await _memberService.CreateOrderAsync("u1", request);

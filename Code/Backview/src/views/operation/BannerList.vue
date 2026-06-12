@@ -39,11 +39,11 @@ function openEdit(b: Banner) {
 }
 async function onSave() {
   if (editing.value) {
-    await updateBanner(editing.value.id, formData.value)
+    await updateBanner(editing.value.id, formData.value as Partial<Banner>)
     ElMessage.success('已更新')
   } else {
     if (!formData.value.title) { ElMessage.warning('请输入标题'); return }
-    await addBanner(formData.value)
+    await addBanner(formData.value as Partial<Banner>)
     ElMessage.success('已创建')
   }
   showAdd.value = false

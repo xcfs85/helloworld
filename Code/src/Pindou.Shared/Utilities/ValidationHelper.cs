@@ -37,7 +37,8 @@ public static class ValidationHelper
         if (string.IsNullOrEmpty(email) || !email.Contains('@')) return email;
         var parts = email.Split('@');
         var name = parts[0];
-        var masked = name.Length <= 2 ? name[0] + "*" : $"{name[..2]}***";
+        if (string.IsNullOrEmpty(name)) return email;
+        var masked = name.Length == 1 ? name + "*" : $"{name[..2]}****";
         return $"{masked}@{parts[1]}";
     }
 }

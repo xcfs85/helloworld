@@ -147,7 +147,7 @@ public class MessageServiceTests
             new Message { Id = "m1", UserId = "u1", IsRead = false },
             new Message { Id = "m2", UserId = "u1", IsRead = false }
         };
-        _messageRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Message, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _messageRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Message, bool>>>()))
             .ReturnsAsync(messages);
         _messageRepoMock.Setup(r => r.UpdateRangeAsync(It.IsAny<List<Message>>())).ReturnsAsync(true);
 
@@ -160,7 +160,7 @@ public class MessageServiceTests
     [Fact]
     public async Task MarkAllReadAsync_ShouldReturnTrue_WhenNoUnread()
     {
-        _messageRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Message, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _messageRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Message, bool>>>()))
             .ReturnsAsync(new List<Message>());
 
         var result = await _messageService.MarkAllReadAsync("u1");

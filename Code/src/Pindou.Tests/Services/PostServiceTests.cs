@@ -40,7 +40,9 @@ public class PostServiceTests
     {
         _contentReviewMock.Setup(c => c.CheckAsync(It.IsAny<string>()))
             .ReturnsAsync((true, "", (string?)null));
-        _postRepoMock.Setup(r => r.InsertAsync(It.IsAny<Post>())).ReturnsAsync("post1");
+        _postRepoMock.Setup(r => r.InsertAsync(It.IsAny<Post>()))
+            .Callback<Post>(p => p.Id = "post1")
+            .ReturnsAsync("post1");
 
         var request = new CreatePostRequest { Type = "work", Title = "test", Content = "hello" };
         var result = await _postService.CreatePostAsync("u1", request);
@@ -285,7 +287,9 @@ public class PostServiceTests
         _postRepoMock.Setup(r => r.GetByIdAsync("p1")).ReturnsAsync(post);
         _contentReviewMock.Setup(c => c.CheckAsync(It.IsAny<string>()))
             .ReturnsAsync((true, "", (string?)null));
-        _commentRepoMock.Setup(r => r.InsertAsync(It.IsAny<Comment>())).ReturnsAsync("c1");
+        _commentRepoMock.Setup(r => r.InsertAsync(It.IsAny<Comment>()))
+            .Callback<Comment>(c => c.Id = "c1")
+            .ReturnsAsync("c1");
         _postRepoMock.Setup(r => r.UpdateAsync(It.IsAny<Post>())).ReturnsAsync(true);
 
         var request = new CreateCommentRequest { PostId = "p1", Content = "nice" };

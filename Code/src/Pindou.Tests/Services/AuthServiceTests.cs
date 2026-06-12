@@ -238,7 +238,7 @@ public class AuthServiceTests
             new Token { Id = "t1", UserId = "u1", AccessToken = "at1", RefreshToken = "rt1", DeviceId = "d1", ExpiresAt = DateTime.Now.AddDays(1) },
             new Token { Id = "t2", UserId = "u1", AccessToken = "at2", RefreshToken = "rt2", DeviceId = "d2", ExpiresAt = DateTime.Now.AddDays(1) }
         };
-        _tokenRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Token, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _tokenRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Token, bool>>>()))
             .ReturnsAsync(tokens);
         _tokenRepoMock.Setup(r => r.DeleteAsync(It.IsAny<object>())).ReturnsAsync(true);
 

@@ -4,12 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHead from '@/components/PageHead.vue'
 import StatusTag from '@/components/StatusTag.vue'
-import { getUser, disableUser, resetPassword, muteUser } from '@/api/user'
-import type { User } from '@/types'
+import { getUser, disableUser, resetPassword, muteUser, type UserListItem } from '@/api/user'
 
 const route = useRoute()
 const router = useRouter()
-const user = ref<User | null>(null)
+const user = ref<UserListItem | null>(null)
 
 const sideItems = [
   { label: '基本信息', anchor: '#basic' },
@@ -27,16 +26,16 @@ onMounted(async () => {
 
 async function onResetPwd() {
   try {
-    const { value } = await ElMessageBox.prompt('确认重置该用户密码？新密码将生成后展示。', '重置密码')
+    await ElMessageBox.confirm('确认重置该用户密码？新密码将生成后展示。', '重置密码', { type: 'warning' })
     const res: any = await resetPassword(user.value!.id)
-    await ElMessageBox.alert(`新密码：${res.newPassword}\n请通过站内信发送给用户`, '密码已重置', { type: 'success' })
+    await ElMessageBox.alert(`新密码：${res?.newPassword || '(见响应)'}\n请通过站内信发送给用户`, '密码已重置', { type: 'success' })
   } catch {}
 }
 
 async function onMute() {
   try {
     const { value } = await ElMessageBox.prompt('禁言天数（1-30）', '禁言', { inputValue: '3' })
-    await muteUser(user.value!.id, parseInt(value), '运营禁言')
+    await muteUser(user.value!.id, { days: parseInt(value), reason: '运营禁言' })
     ElMessage.success('已禁言')
   } catch {}
 }
@@ -120,12 +119,12 @@ const devices = [
                   <div class="lbl">注册方式</div>
                   <div>
                     <StatusTag :variant="user.register_method === 'wechat' ? 'info' : user.register_method === 'apple' ? 'purple' : 'neutral'">
-                      {{ { wechat: '微信', phone: '手机号', apple: 'Apple', guest: '游客' }[user.register_method] }}
+                      {{ ({ wechat: '微信', phone: '手机号', apple: 'Apple', guest: '游客' } as any)[user.register_method || ''] || '—' }}
                     </StatusTag>
                     <span class="muted small" v-if="user.register_method === 'wechat'"> · 微信昵称「{{ user.nickname }}」</span>
                   </div>
                 </div>
-                <div class="form-row"><div class="lbl">注册时间</div><div>{{ user.register_time }} <span class="muted small">已使用 {{ Math.ceil((Date.now() - new Date(user.register_time).getTime()) / 86400000) }} 天</span></div></div>
+                <div class="form-row"><div class="lbl">注册时间</div><div>{{ user.register_time || user.create_time }} <span v-if="user.register_time" class="muted small">已使用 {{ Math.ceil((Date.now() - new Date(user.register_time).getTime()) / 86400000) }} 天</span></div></div>
                 <div class="form-row"><div class="lbl">最后登录</div><div>{{ user.last_login_time }} · IP 123.125.*.* · iPhone 14 Pro</div></div>
                 <div class="form-row">
                   <div class="lbl">账号状态</div>

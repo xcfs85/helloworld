@@ -1,7 +1,7 @@
 /** 登录与权限 API
  * 真实对接后台接口 */
 
-import request from '@/utils/request'
+import service from '@/utils/request'
 
 // 验证码相关类型
 export interface CaptchaResponse {
@@ -39,22 +39,22 @@ export interface LoginResponse {
 
 // 获取验证码
 export function getCaptcha() {
-  return request.get<CaptchaResponse>('/auth/captcha')
+  return service.get<CaptchaResponse>('/auth/captcha')
 }
 
 // 登录
 export function login(data: LoginParams) {
-  return request.post<LoginResponse>('/auth/login', data)
+  return service.post<LoginResponse>('/auth/login', data)
 }
 
 // 登出
 export function logout() {
-  return request.post('/auth/logout')
+  return service.post('/auth/logout')
 }
 
 // 获取当前用户
 export function getCurrentUser() {
-  return request.get<AdminUserInfo>('/auth/current')
+  return service.get<AdminUserInfo>('/auth/current')
 }
 
 // ===== 账号管理 =====
@@ -63,7 +63,7 @@ export interface AdminQuery {
   page?: number
   page_size?: number
   role_id?: number
-  status?: number
+  status?: number | string
   keyword?: string
 }
 
@@ -81,7 +81,46 @@ export interface AdminUserListItem {
 
 // 账号管理 - 列表
 export function listAdmins(query: AdminQuery) {
-  return request.get<{ list: AdminUserListItem[]; total: number }>('/admin/list', { params: query })
+  return service.get<{ list: AdminUserListItem[]; total: number }>('/admin/list', { params: query })
+}
+
+// 账号管理 - 新增
+export interface CreateAdminParams {
+  username: string
+  password: string
+  nickname: string
+  role_id: number
+  status?: number
+}
+
+export function createAdmin(data: CreateAdminParams) {
+  return service.post<number>('/admin', data)
+}
+
+// 账号管理 - 编辑
+export interface UpdateAdminParams {
+  nickname: string
+  role_id: number
+  status: number
+}
+
+export function updateAdmin(id: number, data: UpdateAdminParams) {
+  return service.put(`/admin/${id}`, data)
+}
+
+// 账号管理 - 修改状态
+export function updateAdminStatus(id: number, status: number) {
+  return service.post(`/admin/${id}/status`, { status })
+}
+
+// 账号管理 - 重置密码
+export function resetAdminPassword(id: number, newPassword: string) {
+  return service.post(`/admin/${id}/reset-password`, { newPassword })
+}
+
+// 账号管理 - 删除
+export function deleteAdmin(id: number) {
+  return service.delete(`/admin/${id}`)
 }
 
 // ===== 角色管理 =====
@@ -97,12 +136,34 @@ export interface RoleItem {
 
 // 角色管理 - 列表
 export function listRoles(query: { page?: number; page_size?: number } = {}) {
-  return request.get<{ list: RoleItem[]; total: number }>('/role/list', { params: query })
+  return service.get<{ list: RoleItem[]; total: number }>('/role/list', { params: query })
 }
 
 // 角色管理 - 所有角色
 export function getAllRoles() {
-  return request.get<RoleItem[]>('/role/all')
+  return service.get<RoleItem[]>('/role/all')
+}
+
+// 角色管理 - 创建角色
+export interface CreateRoleParams {
+  name: string
+  code: string
+  description?: string
+  permissions: string[]
+}
+
+export function createRole(data: CreateRoleParams) {
+  return service.post<number>('/role', data)
+}
+
+// 角色管理 - 更新角色
+export function updateRole(id: number, data: CreateRoleParams) {
+  return service.put(`/role/${id}`, data)
+}
+
+// 角色管理 - 删除角色
+export function deleteRole(id: number) {
+  return service.delete(`/role/${id}`)
 }
 
 // ===== 操作日志 =====
@@ -131,5 +192,5 @@ export interface OperationLogItem {
 
 // 操作日志 - 列表
 export function listLogs(query: LogQuery) {
-  return request.get<{ list: OperationLogItem[]; total: number }>('/log/list', { params: query })
+  return service.get<{ list: OperationLogItem[]; total: number }>('/log/list', { params: query })
 }

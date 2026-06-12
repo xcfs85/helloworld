@@ -247,7 +247,7 @@ class _ColorsTablePageState extends State<ColorsTablePage> {
                       margin: const EdgeInsets.only(right: 2),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(1),
-                        color: i < (c['pct'] as double / 2).round() ? AppTheme.ink2 : AppTheme.ink3.withOpacity(0.3),
+                        color: i < ((c['pct'] as double) / 2).round() ? AppTheme.ink2 : AppTheme.ink3.withOpacity(0.3),
                       ),
                     );
                   }),

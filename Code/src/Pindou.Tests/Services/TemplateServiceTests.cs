@@ -246,7 +246,9 @@ public class TemplateServiceTests
         };
         _templateRepoMock.Setup(r => r.GetByIdAsync("t1")).ReturnsAsync(template);
         _templateRepoMock.Setup(r => r.UpdateAsync(It.IsAny<Template>())).ReturnsAsync(true);
-        _diagramRepoMock.Setup(r => r.InsertAsync(It.IsAny<Diagram>())).ReturnsAsync("d1");
+        _diagramRepoMock.Setup(r => r.InsertAsync(It.IsAny<Diagram>()))
+            .Callback<Diagram>(d => d.Id = "d1")
+            .ReturnsAsync("d1");
 
         var result = await _templateService.UseTemplateAsync("u1", "t1");
 

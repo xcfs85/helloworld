@@ -66,12 +66,64 @@ public class UserController : ControllerBase
         return ApiResponse.Ok();
     }
 
+    /// <summary>禁言用户</summary>
+    [HttpPost("{id}/mute")]
+    [Permission("user:mute")]
+    [OperationLog("禁言用户")]
+    public async Task<ApiResponse> Mute(string id, [FromBody] MuteUserRequest request)
+    {
+        var adminId = long.Parse(HttpContext.Items["AdminId"]?.ToString() ?? "0");
+        await _userService.MuteUserAsync(id, request.Days, request.Reason ?? string.Empty, adminId);
+        return ApiResponse.Ok();
+    }
+
     /// <summary>用户帖子</summary>
     [HttpGet("{id}/posts")]
     public async Task<ApiResponse<PagedResult<PostDto>>> Posts(string id, [FromQuery] PageRequest request)
     {
         var data = await _postService.GetUserPostsAsync(id, request);
         return ApiResponse<PagedResult<PostDto>>.Ok(data);
+    }
+
+    /// <summary>用户统计（用于侧边栏分类计数）</summary>
+    [HttpGet("stats")]
+    public async Task<ApiResponse<UserStatsDto>> Stats()
+    {
+        var data = await _userService.GetUserStatsAsync();
+        return ApiResponse<UserStatsDto>.Ok(data);
+    }
+
+    /// <summary>后台创建用户</summary>
+    [HttpPost("create")]
+    [Permission("user:create")]
+    [OperationLog("创建用户")]
+    public async Task<ApiResponse<UserListDto>> Create([FromBody] CreateUserRequest request)
+    {
+        var adminId = long.Parse(HttpContext.Items["AdminId"]?.ToString() ?? "0");
+        var data = await _userService.CreateUserAsync(request, adminId);
+        return ApiResponse<UserListDto>.Ok(data);
+    }
+
+    /// <summary>批量导入用户</summary>
+    [HttpPost("import")]
+    [Permission("user:create")]
+    [OperationLog("导入用户")]
+    public async Task<ApiResponse<ImportUserResult>> Import([FromBody] List<CreateUserRequest> users)
+    {
+        var adminId = long.Parse(HttpContext.Items["AdminId"]?.ToString() ?? "0");
+        var data = await _userService.ImportUsersAsync(users, adminId);
+        return ApiResponse<ImportUserResult>.Ok(data);
+    }
+
+    /// <summary>导出用户CSV</summary>
+    [HttpGet("export")]
+    public async Task<ApiResponse<PagedResult<UserListDto>>> Export([FromQuery] UserListQuery query)
+    {
+        // 导出时拉取全部数据（最大10000条）
+        query.Page = 1;
+        query.Size = 10000;
+        var data = await _userService.GetListAsync(query);
+        return ApiResponse<PagedResult<UserListDto>>.Ok(data);
     }
 }
 
@@ -108,6 +160,22 @@ public class MemberController : ControllerBase
         await _memberService.OpenMemberAsync(request.UserId, request, adminId);
         return ApiResponse.Ok();
     }
+
+    /// <summary>会员统计</summary>
+    [HttpGet("stats")]
+    public async Task<ApiResponse<MemberStatsDto>> Stats()
+    {
+        var data = await _userService.GetMemberStatsAsync();
+        return ApiResponse<MemberStatsDto>.Ok(data);
+    }
+
+    /// <summary>会员等级分布（专门用于侧边栏分类计数）</summary>
+    [HttpGet("level-stats")]
+    public async Task<ApiResponse<MemberLevelStatsDto>> LevelStats()
+    {
+        var data = await _userService.GetMemberLevelStatsAsync();
+        return ApiResponse<MemberLevelStatsDto>.Ok(data);
+    }
 }
 
 [ApiController]
@@ -141,5 +209,11 @@ public class OrderController : ControllerBase
 
 public class DisableUserRequest
 {
+    public string? Reason { get; set; }
+}
+
+public class MuteUserRequest
+{
+    public int Days { get; set; }
     public string? Reason { get; set; }
 }

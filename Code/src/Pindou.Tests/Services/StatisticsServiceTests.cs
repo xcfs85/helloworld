@@ -225,7 +225,7 @@ public class StatisticsServiceTests
         _userRepoMock.Setup(r => r.CountAsync(It.IsAny<Expression<Func<User, bool>>>())).ReturnsAsync(100);
         _diagramRepoMock.Setup(r => r.CountAsync(It.IsAny<Expression<Func<Diagram, bool>>>())).ReturnsAsync(500);
         _postRepoMock.Setup(r => r.CountAsync(It.IsAny<Expression<Func<Post, bool>>>())).ReturnsAsync(200);
-        _orderRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Order, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _orderRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Order, bool>>>()))
             .ReturnsAsync(new List<Order> { new Order { Amount = 29.9m }, new Order { Amount = 59.9m } });
 
         var result = await _statisticsService.GetOverviewAsync(null, null);

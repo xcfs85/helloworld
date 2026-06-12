@@ -1,5 +1,4 @@
-using SqlSugar;
-using Pindou.Domain.Common;
+using SqlSugar;using Pindou.Domain.Common;
 using Pindou.Domain.Enums;
 
 namespace Pindou.Domain.Entities.User;
@@ -50,9 +49,17 @@ public class User : UuidEntity
     [SugarColumn(IsNullable = true)]
     public DateTime? MemberExpireTime { get; set; }
 
-    /// <summary>状态:active/disabled</summary>
+    /// <summary>状态: active/disabled</summary>
     [SugarColumn(Length = 20, IsNullable = false, DefaultValue = "'active'")]
     public string Status { get; set; } = "active";
+
+    /// <summary>禁言过期时间</summary>
+    [SugarColumn(IsNullable = true)]
+    public DateTime? MuteExpireTime { get; set; }
+
+    /// <summary>禁言原因</summary>
+    [SugarColumn(Length = 500, IsNullable = true)]
+    public string? MuteReason { get; set; }
 
     /// <summary>最后登录时间</summary>
     [SugarColumn(IsNullable = true)]

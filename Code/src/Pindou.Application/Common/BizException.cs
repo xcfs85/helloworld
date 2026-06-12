@@ -42,6 +42,7 @@ public static class ErrorCodes
     // 资源错误 4001-4999
     public const int NotFound = 4001;
     public const int AlreadyExists = 4002;
+    public const int BadRequest = 4003;
 
     // 服务错误 5001-5999
     public const int ServerError = 5001;

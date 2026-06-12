@@ -1,13 +1,4 @@
-using Moq;
-using Pindou.Application.Common;
-using Pindou.Application.DTOs.User;
-using Pindou.Domain.Entities.User;
-using Pindou.Domain.Entities.Creation;
-using Pindou.Domain.Entities.Community;
-using Pindou.Infrastructure.Cache;
-using Pindou.Infrastructure.Repositories;
-using Pindou.Infrastructure.Services.User;
-using System.Linq.Expressions;
+using Moq; using Pindou.Application.Common; using Pindou.Application.DTOs.User; using Pindou.Domain.Entities.User; using Pindou.Domain.Entities.Creation; using Pindou.Domain.Entities.Community; using Pindou.Domain.Entities.Member; using Pindou.Infrastructure.Cache; using Pindou.Infrastructure.Repositories; using Pindou.Infrastructure.Services.User; using System.Linq.Expressions;
 
 namespace Pindou.Tests.Services;
 
@@ -16,6 +7,9 @@ public class UserServiceTests
     private readonly Mock<IRepository<User>> _userRepoMock;
     private readonly Mock<IRepository<Diagram>> _diagramRepoMock;
     private readonly Mock<IRepository<Post>> _postRepoMock;
+    private readonly Mock<IRepository<Member>> _memberRepoMock;
+    private readonly Mock<IRepository<Order>> _orderRepoMock;
+    private readonly Mock<IRepository<MemberProduct>> _productRepoMock;
     private readonly Mock<ICacheService> _cacheMock;
     private readonly UserService _userService;
 
@@ -24,8 +18,11 @@ public class UserServiceTests
         _userRepoMock = new Mock<IRepository<User>>();
         _diagramRepoMock = new Mock<IRepository<Diagram>>();
         _postRepoMock = new Mock<IRepository<Post>>();
+        _memberRepoMock = new Mock<IRepository<Member>>();
+        _orderRepoMock = new Mock<IRepository<Order>>();
+        _productRepoMock = new Mock<IRepository<MemberProduct>>();
         _cacheMock = new Mock<ICacheService>();
-        _userService = new UserService(_userRepoMock.Object, _diagramRepoMock.Object, _postRepoMock.Object, _cacheMock.Object);
+        _userService = new UserService(_userRepoMock.Object, _diagramRepoMock.Object, _postRepoMock.Object, _memberRepoMock.Object, _orderRepoMock.Object, _productRepoMock.Object, _cacheMock.Object);
     }
 
     #region GetUserInfoAsync Tests
@@ -108,6 +105,10 @@ public class UserServiceTests
             .ReturnsAsync((users, 2));
         _diagramRepoMock.Setup(r => r.CountAsync(It.IsAny<Expression<Func<Diagram, bool>>>())).ReturnsAsync(1);
         _postRepoMock.Setup(r => r.CountAsync(It.IsAny<Expression<Func<Post, bool>>>())).ReturnsAsync(2);
+        _memberRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Member, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .ReturnsAsync(new List<Member>());
+        _orderRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<Order, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .ReturnsAsync(new List<Order>());
 
         var query = new UserListQuery { Page = 1, Size = 10 };
         var result = await _userService.GetListAsync(query);

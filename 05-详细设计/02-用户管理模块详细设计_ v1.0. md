@@ -512,6 +512,38 @@ Response:
 }
 ```
 
+#### 4.2.5 会员统计
+
+```
+GET /api/admin/v1/member/stats
+Authorization: Bearer {token}
+
+说明: 获取会员统计数据，用于侧边栏展示
+
+Response:
+{
+    "code": 0,
+    "data": {
+        "total": 312,
+        "level_counts": [
+            { "level": "all", "count": 312 },
+            { "level": "VIP1", "count": 182 },
+            { "level": "VIP2", "count": 86 },
+            { "level": "VIP3", "count": 38 },
+            { "level": "SVIP", "count": 6 }
+        ],
+        "channel_counts": [
+            { "channel": "wechat", "count": 156 },
+            { "channel": "alipay", "count": 89 },
+            { "channel": "appstore", "count": 45 },
+            { "channel": "backend", "count": 22 }
+        ],
+        "expiring_soon_count": 28,
+        "expired_count": 15
+    }
+}
+```
+
 ---
 
 ## 5. 核心流程设计

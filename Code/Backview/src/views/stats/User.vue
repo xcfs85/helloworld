@@ -1,16 +1,37 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import PageHead from '@/components/PageHead.vue'
-import { getUserStats } from '@/api/stats'
+import { getTrends, type DailyStats } from '@/api/stats'
 
-const data = ref<any>(null)
+const data = ref<any>({
+  growth: [] as number[],
+  gender: { male: 0, female: 0, unknown: 0 },
+  age: [] as { range: string; value: number }[],
+  city: [] as { name: string; value: number }[],
+  register_method: {} as Record<string, number>
+})
 
 onMounted(async () => {
-  data.value = await getUserStats()
-  drawLine()
-  drawGender()
-  drawAge()
-  drawCity()
+  try {
+    const end = new Date()
+    const start = new Date()
+    start.setDate(start.getDate() - 29) // 近 30 天
+    const fmt = (d: Date) => d.toISOString().split('T')[0]
+    const list: DailyStats[] = await getTrends({ start: fmt(start), end: fmt(end) })
+
+    // 从 daily_stats 派生可用的数据
+    data.value = {
+      ...data.value,
+      growth: list.map(d => d.new_user_count ?? 0)
+    }
+
+    drawLine()
+    drawGender()
+    drawAge()
+    drawCity()
+  } catch (e) {
+    console.error('[Stats/User] 加载数据失败', e)
+  }
 })
 
 function drawLine() {
@@ -43,10 +64,10 @@ function drawLine() {
 }
 function drawGender() {
   const el = document.getElementById('genderChart')
-  if (!el || !data.value) return
+  if (!el) return
+  const g = data.value?.gender || { male: 0, female: 0, unknown: 0 }
   import('echarts').then(echarts => {
     const chart = echarts.init(el)
-    const g = data.value.gender
     chart.setOption({
       series: [{
         type: 'pie',
@@ -65,10 +86,10 @@ function drawGender() {
 }
 function drawAge() {
   const el = document.getElementById('ageChart')
-  if (!el || !data.value) return
+  if (!el) return
+  const a = data.value?.age || []
   import('echarts').then(echarts => {
     const chart = echarts.init(el)
-    const a = data.value.age
     chart.setOption({
       grid: { top: 16, right: 8, bottom: 24, left: 50 },
       xAxis: { type: 'category', data: a.map((x: any) => x.range), axisLine: { lineStyle: { color: '#E6DFD2' } }, axisLabel: { color: '#8A7E72', fontSize: 10.5 }, axisTick: { show: false } },
@@ -87,10 +108,10 @@ function drawAge() {
 }
 function drawCity() {
   const el = document.getElementById('cityChart')
-  if (!el || !data.value) return
+  if (!el) return
+  const c = data.value?.city || []
   import('echarts').then(echarts => {
     const chart = echarts.init(el)
-    const c = data.value.city
     chart.setOption({
       grid: { top: 16, right: 30, bottom: 24, left: 80 },
       xAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed', color: '#E6DFD2' } }, axisLabel: { color: '#8A7E72', fontSize: 10.5 } },
@@ -114,7 +135,7 @@ function drawCity() {
     <PageHead
       :crumbs="[{ label: '数据统计' }, { label: '用户分析' }]"
       title="用户分析"
-      sub="总用户 1,234 · 会员 312 · 30 日新增 1,234"
+      sub="用户增长与构成 · 后端暂未提供维度数据时显示为空"
     >
       <template #actions>
         <div class="date-range">
@@ -129,23 +150,23 @@ function drawCity() {
     <div class="kpi-row">
       <div class="kpi-card">
         <div class="kpi-lbl">总用户</div>
-        <div class="kpi">1,234</div>
-        <div class="kpi-sub"><span class="up">↑ 12.3%</span> 较上周期</div>
+        <div class="kpi">--</div>
+        <div class="kpi-sub"><span class="muted small">后端未提供</span></div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-lbl">新增用户</div>
-        <div class="kpi">+1,234</div>
-        <div class="kpi-sub"><span class="up">↑ 5.6%</span> 较上周期</div>
+        <div class="kpi-lbl">新增用户（近 30 天）</div>
+        <div class="kpi">{{ (data?.growth || []).reduce((a: number, b: number) => a + b, 0).toLocaleString() }}</div>
+        <div class="kpi-sub"><span class="up">实时</span> 自趋势数据</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-lbl">会员用户</div>
-        <div class="kpi">312</div>
-        <div class="kpi-sub"><span class="up">↑ 8.9%</span> 较上周期</div>
+        <div class="kpi">--</div>
+        <div class="kpi-sub"><span class="muted small">后端未提供</span></div>
       </div>
       <div class="kpi-card">
         <div class="kpi-lbl">会员渗透率</div>
-        <div class="kpi">25.3%</div>
-        <div class="kpi-sub"><span class="up">↑ 1.2%</span> 较上周期</div>
+        <div class="kpi">--</div>
+        <div class="kpi-sub"><span class="muted small">后端未提供</span></div>
       </div>
     </div>
 
@@ -160,25 +181,17 @@ function drawCity() {
       </div>
       <div class="panel">
         <div class="panel-head">
-          <div class="ph-title">注册方式 <span class="ct">{{ Object.values(data?.register_method || {}).reduce((a: any, b: any) => a + b, 0) }}%</span></div>
+          <div class="ph-title">注册方式 <span class="ct">--</span></div>
         </div>
         <div class="panel-body">
-          <div class="rm-list">
-            <div v-for="(v, k) in (data?.register_method || {})" :key="k" class="rm">
-              <div class="rm-lbl">{{ { wechat: '微信', phone: '手机号', apple: 'Apple ID', guest: '游客' }[k as string] }}</div>
-              <div class="progress"><div class="fill" :style="`width: ${v * 2}%`"></div></div>
-              <div class="rm-val">{{ v }}%</div>
-            </div>
-          </div>
+          <div class="empty-hint">注册方式分布待后端提供接口（候选：<code>GET /api/admin/v1/statistics/register-method</code>）</div>
         </div>
       </div>
     </div>
 
     <div class="grid-3">
       <div class="panel">
-        <div class="panel-head">
-          <div class="ph-title">性别分布</div>
-        </div>
+        <div class="panel-head"><div class="ph-title">性别分布</div></div>
         <div class="panel-body">
           <div id="genderChart" class="donut"></div>
           <div class="row" style="justify-content: center; gap: 16px; margin-top: 12px; font-size: 11.5px; color: var(--ink-2)">
@@ -189,17 +202,13 @@ function drawCity() {
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head">
-          <div class="ph-title">年龄分布</div>
-        </div>
+        <div class="panel-head"><div class="ph-title">年龄分布</div></div>
         <div class="panel-body">
           <div id="ageChart" class="bar-chart"></div>
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head">
-          <div class="ph-title">TOP 6 城市</div>
-        </div>
+        <div class="panel-head"><div class="ph-title">TOP 6 城市</div></div>
         <div class="panel-body">
           <div id="cityChart" class="bar-chart"></div>
         </div>
@@ -223,8 +232,7 @@ function drawCity() {
 .line-chart { height: 220px; }
 .donut { height: 160px; }
 .bar-chart { height: 200px; }
-.rm-list { display: flex; flex-direction: column; gap: 10px; }
-.rm { display: grid; grid-template-columns: 60px 1fr 40px; gap: 10px; align-items: center; font-size: 12.5px; }
-.rm .rm-lbl { color: var(--ink-2); }
-.rm .rm-val { text-align: right; font-weight: 600; color: var(--ink); }
+.empty-hint { padding: 24px 12px; color: var(--ink-3); font-size: 12.5px; text-align: center; }
+.empty-hint code { font-family: var(--mono); font-size: 11.5px; background: var(--bg-2); padding: 1px 6px; border-radius: 4px; }
+.muted.small { font-size: 11px; color: var(--ink-3); }
 </style>

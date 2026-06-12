@@ -176,6 +176,40 @@ public class TemplateService : ITemplateService
         return result;
     }
 
+    public async Task<string> CreateCategoryAsync(string name, string? icon, int sort)
+    {
+        var category = new TemplateCategory
+        {
+            Name = name,
+            Icon = icon,
+            Sort = sort
+        };
+        await _categoryRepo.InsertAsync(category);
+        return category.Id;
+    }
+
+    public async Task<bool> UpdateCategoryAsync(string id, string name, string? icon, int sort)
+    {
+        var category = await _categoryRepo.GetByIdAsync(id);
+        if (category == null) return false;
+
+        category.Name = name;
+        category.Icon = icon;
+        category.Sort = sort;
+        await _categoryRepo.UpdateAsync(category);
+        return true;
+    }
+
+    public async Task<bool> DeleteCategoryAsync(string id)
+    {
+        // 检查是否有模板使用该分类
+        var templateCount = await _templateRepo.CountAsync(t => t.CategoryId == id && t.Status == "active");
+        if (templateCount > 0) throw new BizException("该分类下存在模板，无法删除", ErrorCodes.ParamError);
+
+        await _categoryRepo.DeleteAsync(id);
+        return true;
+    }
+
     public async Task<PagedResult<TemplateTagDto>> GetTagsAsync(string? type, PageRequest request)
     {
         var exp = Expressionable.Create<TemplateTag>().And(t => t.Status == 1);

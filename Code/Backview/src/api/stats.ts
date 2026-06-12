@@ -1,43 +1,65 @@
-/** 数据统计 API（基于 06-数据统计模块详细设计） */
+/** 数据统计 API（对接后台 /api/admin/v1/statistics 接口） */
 
 import service from '@/utils/request'
 
-// 核心指标
-export function getOverview(params?: { date_type?: string; start_date?: string; end_date?: string }) {
-  return service.get('/statistics/overview', { params })
+/** 每日统计数据（与后端 DailyStatsDto 对应，已在响应拦截器中转为 snake_case） */
+export interface DailyStats {
+  stat_date: string
+  dau: number
+  new_user_count: number
+  retention_1d?: number
+  retention_7d?: number
+  retention_30d?: number
+  generation_count: number
+  avg_bead_count: number
+  avg_color_count: number
+  export_count: number
+  post_count: number
+  work_count: number
+  tutorial_count: number
+  comment_count: number
+  like_count: number
+  share_count: number
+  favorite_count: number
+  member_order_count: number
+  member_revenue: number
 }
 
-// 趋势数据
-export function getTrend(metric: string, days = 14) {
-  const endDate = new Date()
-  const startDate = new Date()
-  startDate.setDate(startDate.getDate() - days)
-  return service.get('/statistics/trends', {
-    params: {
-      start: startDate.toISOString().split('T')[0],
-      end: endDate.toISOString().split('T')[0]
-    }
-  })
+/** 概览统计响应（与后端 OverviewDto 对应） */
+export interface OverviewData {
+  total_users: number
+  active_users: number
+  new_users: number
+  total_diagrams: number
+  total_posts: number
+  total_templates: number
+  member_count: number
+  total_revenue: number
+  daily_stats: DailyStats[]
 }
 
-// 用户分析
-export function getUserStats(params?: { date_type?: string; start_date?: string; end_date?: string }) {
-  return service.get('/statistics/range', { params })
+// 概览统计
+export function getOverview(params?: { start?: string; end?: string }) {
+  return service.get<OverviewData>('/statistics/overview', { params })
 }
 
-// 创作分析 - 复用趋势数据
-export function getCreationStats(params?: { date_type?: string; start_date?: string; end_date?: string }) {
-  return service.get('/statistics/trends', { params })
+// 趋势数据（返回指定时间段内的每日统计）
+export function getTrends(params?: { start?: string; end?: string }) {
+  return service.get<DailyStats[]>('/statistics/trends', { params })
 }
 
-// 社区分析 - 复用每日统计
-export function getCommunityStats(params?: { date_type?: string }) {
-  const date = new Date().toISOString().split('T')[0]
-  return service.get('/statistics/daily', { params: { date } })
+// 每日统计
+export function getDailyStats(date?: string) {
+  return service.get<DailyStats>('/statistics/daily', { params: { date } })
+}
+
+// 范围统计
+export function getRangeStats(start: string, end: string) {
+  return service.get<DailyStats[]>('/statistics/range', { params: { start, end } })
 }
 
 // 导出报表
-export function exportStats(params?: { date_type?: string; start_date?: string; end_date?: string }) {
+export function exportStats(params?: { start?: string; end?: string }) {
   return service.get('/statistics/export', {
     params,
     responseType: 'blob' as any

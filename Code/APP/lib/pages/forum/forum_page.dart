@@ -29,7 +29,7 @@ class _ForumPageState extends State<ForumPage> {
             icon: const Icon(Icons.add_rounded, size: 22),
             onPressed: () => Navigator.pushNamed(context, AppRoutes.postCreate),
           ],
-        ),
+        ],
       ),
       body: Column(
         children: [

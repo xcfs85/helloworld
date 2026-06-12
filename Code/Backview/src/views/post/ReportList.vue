@@ -96,8 +96,8 @@ onMounted(load)
           <tr v-for="r in list" :key="r.id">
             <td><span class="ck"></span></td>
             <td>
-              <StatusTag :variant="{ spam: 'warn', violation: 'danger', infringement: 'purple', fake: 'info', attack: 'danger', other: 'neutral' }[r.type]">
-                {{ { spam: '垃圾广告', violation: '违规内容', infringement: '侵权', fake: '虚假信息', attack: '人身攻击', other: '其他' }[r.type] }}
+              <StatusTag :variant="(({ spam: 'warn', violation: 'danger', infringement: 'purple', fake: 'info', attack: 'danger', other: 'neutral' } as any)[r.type] || 'neutral') as any">
+                {{ ({ spam: '垃圾广告', violation: '违规内容', infringement: '侵权', fake: '虚假信息', attack: '人身攻击', other: '其他' } as any)[r.type] || r.type }}
               </StatusTag>
             </td>
             <td>

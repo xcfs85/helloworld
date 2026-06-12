@@ -10,20 +10,26 @@ const list = ref<Category[]>([])
 const loading = ref(false)
 const showAdd = ref(false)
 const editing = ref<Category | null>(null)
-const newCategory = ref({ name: '', sort: 99, status: 'visible' })
+const newCategory = ref<{ name: string; sort: number; status: string | number }>({ name: '', sort: 99, status: 'visible' })
 
 async function load() {
   loading.value = true
-  try { list.value = await listCategories() } finally { loading.value = false }
+  try {
+    const res: any = await listCategories()
+    list.value = (Array.isArray(res) ? res : (res?.list || [])) as Category[]
+  } finally { loading.value = false }
 }
 
 async function onSave() {
   if (editing.value) {
-    await updateCategory(editing.value.id, editing.value)
+    const payload: any = { name: editing.value.name, sort: editing.value.sort, status: editing.value.status }
+    if (editing.value.icon) payload.icon = editing.value.icon
+    await updateCategory(editing.value.id, payload)
     ElMessage.success('已更新')
   } else {
     if (!newCategory.value.name) { ElMessage.warning('请输入分类名'); return }
-    await addCategory(newCategory.value)
+    const payload: any = { name: newCategory.value.name, sort: newCategory.value.sort, status: newCategory.value.status }
+    await addCategory(payload)
     ElMessage.success('已添加')
   }
   showAdd.value = false
@@ -39,6 +45,13 @@ async function onDelete(c: Category) {
     ElMessage.success('已删除')
     load()
   } catch {}
+}
+
+async function onToggleStatus(c: Category) {
+  const nextStatus: any = (c.status === 'visible' || c.status === 1) ? 'hidden' : 'visible'
+  await updateCategory(c.id, { status: nextStatus } as any)
+  ElMessage.success('已更新')
+  load()
 }
 
 onMounted(load)
@@ -71,8 +84,8 @@ onMounted(load)
           </div>
           <div class="cat-actions">
             <button class="btn btn-xs btn-ghost" @click="showAdd = true; editing = c">编辑</button>
-            <button class="btn btn-xs btn-ghost" @click="updateCategory(c.id, { status: c.status === 'visible' ? 'hidden' : 'visible' }); load()">
-              {{ c.status === 'visible' ? '隐藏' : '显示' }}
+            <button class="btn btn-xs btn-ghost" @click="onToggleStatus(c)">
+              {{ (c.status === 'visible' || c.status === 1) ? '隐藏' : '显示' }}
             </button>
             <button class="btn btn-xs btn-ghost" style="color: var(--rose)" @click="onDelete(c)">删除</button>
           </div>

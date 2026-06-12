@@ -1,24 +1,22 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 
-const route = useRoute()
 const router = useRouter()
 
 // 菜单数据 - 根据路由自动生成
 const menuGroups = computed(() => {
-  const routes = router.options.routes.find(r => r.path === '/')?.children || []
+  const routes = router.options.routes.find( r => r.path === '/')?.children || []
   const groups: Record<string, any[]> = {}
   routes.forEach(r => {
-    if (!r.meta?.group || r.meta?.hidden) return
-    if (!groups[r.meta.group]) groups[r.meta.group] = []
-    groups[r.meta.group].push(r)
+    const group = r.meta?.group as string | undefined
+    if (!group || r.meta?.hidden) return
+    if (!groups[group]) groups[group] = []
+    groups[group].push(r)
   })
   return Object.entries(groups).map(([title, items]) => ({ title, items }))
 })
-
-const activeMenu = computed(() => route.path)
 
 const user = ref({
   nickname: localStorage.getItem('admin_nickname') || '林运营',
@@ -124,18 +122,17 @@ async function handleLogout() {
               :key="item.name"
               :to="{ name: item.name }"
               custom
-              v-slot="{ navigate }"
+              v-slot="{ navigate, isActive }"
             >
               <div
                 class="nav-item"
-                :class="{ active: activeMenu.startsWith('/' + (item.name as string).split('-')[0]) && item.path === route.path }"
+                :class="{ active: isActive }"
                 @click="navigate"
               >
                 <el-icon class="ni-icon">
                   <component :is="(item.meta as any).icon" />
                 </el-icon>
                 <span class="ni-text">{{ (item.meta as any).title }}</span>
-                <span class="ni-route">{{ (item.path as string).slice(0, 10) }}</span>
               </div>
             </router-link>
           </div>
@@ -198,7 +195,7 @@ async function handleLogout() {
 .topbar-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
 .pill { padding: 4px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 11px; font-weight: 600; letter-spacing: .4px; }
 .pill.soft { background: var(--surface); color: var(--ink-2); border: 1px solid var(--line); }
-.user-chip { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); cursor: pointer; }
+.user- chip { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); cursor: pointer; }
 .avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #FF8A5A, #F5C45E); color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
 .user-meta .un { font-size: 12px; font-weight: 600; line-height: 1.2; }
 .user-meta .ur { font-size: 10px; color: var(--ink-3); line-height: 1.2; }
@@ -236,7 +233,7 @@ async function handleLogout() {
 }
 .nav-item:hover { background: var(--bg); }
 .nav-item.active { background: var(--ink); color: #fff; font-weight: 600; }
-.nav-item.active .ni-icon { color: rgba(255, 255, 255, 0.7); }
+.nav-item.active .ni- icon { color: rgba(255, 255, 255, 0.7); }
 .nav-item.active .ni-route { color: rgba(255, 255, 255, 0.55); }
 .nav-item .ni-icon { width: 14px; height: 14px; color: var(--ink-3); flex-shrink: 0; }
 .nav-item .ni-text { flex: 1; }

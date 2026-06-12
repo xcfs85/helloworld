@@ -4,12 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHead from '@/components/PageHead.vue'
 import StatusTag from '@/components/StatusTag.vue'
-import { getTemplate, approveTemplate, rejectTemplate } from '@/api/template'
-import type { Template } from '@/types'
+import { getTemplate, approveTemplate, rejectTemplate, type TemplateDetailItem } from '@/api/template'
 
 const route = useRoute()
 const router = useRouter()
-const tpl = ref<Template | null>(null)
+const tpl = ref<TemplateDetailItem | null>(null)
 const note = ref('')
 const selectedReason = ref('')
 
@@ -44,7 +43,7 @@ function coverFor(i: number) { return covers[i % covers.length] }
     <PageHead
       :crumbs="[{ label: '模板管理', to: '/template/list' }, { label: '模板审核', to: '/template/list' }, { label: tpl.name }]"
       :title="`模板审核详情`"
-      :sub="`${tpl.id} · 提交于 ${tpl.submit_time}`"
+      :sub="`${tpl.id} · 提交于 ${tpl.create_time || tpl.submit_time || ''}`"
     >
       <template #actions>
         <button class="btn btn-secondary" @click="router.back()">返回</button>
@@ -59,15 +58,15 @@ function coverFor(i: number) { return covers[i % covers.length] }
             <div class="form-row"><div class="lbl">名称</div><div style="font-weight: 600">{{ tpl.name }}</div></div>
             <div class="form-row"><div class="lbl">分类</div><div>{{ tpl.category_name }}</div></div>
             <div class="form-row"><div class="lbl">标签</div><div class="row" style="gap: 6px"><span v-for="tg in tpl.tags" :key="tg" class="chip">#{{ tg }}</span></div></div>
-            <div class="form-row"><div class="lbl">规格</div><div>{{ tpl.board_size }} · {{ tpl.color_count }} 色 · {{ tpl.total_beads.toLocaleString() }} 颗</div></div>
+            <div class="form-row"><div class="lbl">规格</div><div>{{ tpl.board_size }} · {{ tpl.color_count || tpl.total_colors }} 色 · {{ (tpl.total_beads || tpl.bead_count || 0).toLocaleString() }} 颗</div></div>
             <div class="form-row"><div class="lbl">难度</div><div><StatusTag :variant="tpl.difficulty === 'beginner' ? 'ok' : tpl.difficulty === 'intermediate' ? 'warn' : 'danger'">{{ { beginner: '入门', intermediate: '进阶', advanced: '高阶' }[tpl.difficulty] }}</StatusTag></div></div>
-            <div class="form-row"><div class="lbl">风格</div><div>{{ tpl.style }} · {{ tpl.duration }}</div></div>
+            <div class="form-row"><div class="lbl">风格</div><div>{{ tpl.style || '-' }} · {{ tpl.duration || '-' }}</div></div>
             <div class="form-row"><div class="lbl">作者</div>
               <div class="row" style="gap: 8px">
-                <div class="av sm" :class="'c' + ((parseInt(tpl.creator_id.slice(-1)) % 6) + 1)">{{ tpl.creator_name[0] }}</div>
+                <div class="av sm" :class="'c' + ((parseInt((tpl.creator?.id || tpl.creator_id || '0').slice(-1)) % 6) + 1)">{{ (tpl.creator?.nickname || tpl.creator_name || '?')[0] }}</div>
                 <div>
-                  <div style="font-weight: 600">{{ tpl.creator_name }}</div>
-                  <div class="muted small">{{ tpl.creator_id }}</div>
+                  <div style="font-weight: 600">{{ tpl.creator?.nickname || tpl.creator_name }}</div>
+                  <div class="muted small">{{ tpl.creator?.id || tpl.creator_id }}</div>
                 </div>
               </div>
             </div>

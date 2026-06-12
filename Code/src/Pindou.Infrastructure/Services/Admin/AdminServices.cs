@@ -232,22 +232,28 @@ public class AdminUserService : IAdminUserService
     public async Task<PagedResult<AdminUserListDto>> GetListAsync(AdminUserQuery query)
     {
         var exp = Expressionable.Create<AdminUser>();
-        if (query.RoleId.HasValue)
-            exp.And(a => a.RoleId == query.RoleId.Value);
-        if (query.Status.HasValue)
-            exp.And(a => a.Status == query.Status.Value);
+        if (query.role_id.HasValue)
+            exp.And(a => a.RoleId == query.role_id.Value);
+        // status: 1=启用, 0=禁用, all/空=全部
+        if (!string.IsNullOrEmpty(query.status) && query.status != "all")
+        {
+            if (int.TryParse(query.status, out var statusValue))
+                exp.And(a => a.Status == statusValue);
+        }
+        if (!string.IsNullOrWhiteSpace(query.keyword))
+            exp.And(a => a.Username.Contains(query.keyword) || (a.Nickname != null && a.Nickname.Contains(query.keyword)));
 
         var (list, total) = await _adminRepo.GetPagedAsync(
             exp.ToExpression(),
-            query.Page,
-            query.Size,
+            query.page,
+            query.page_size,
             a => a.CreateTime,
             true);
 
         var result = new PagedResult<AdminUserListDto>
         {
-            Page = query.Page,
-            Size = query.Size,
+            Page = query.page,
+            Size = query.page_size,
             Total = total,
             List = new List<AdminUserListDto>()
         };
@@ -366,10 +372,12 @@ public class AdminUserService : IAdminUserService
 public class RoleService : IRoleService
 {
     private readonly IRepository<Role> _roleRepo;
+    private readonly IRepository<AdminUser> _adminUserRepo;
 
-    public RoleService(IRepository<Role> roleRepo)
+    public RoleService(IRepository<Role> roleRepo, IRepository<AdminUser> adminUserRepo)
     {
         _roleRepo = roleRepo;
+        _adminUserRepo = adminUserRepo;
     }
 
     public async Task<PagedResult<RoleDto>> GetListAsync(PageRequest request)
@@ -405,6 +413,7 @@ public class RoleService : IRoleService
                 Code = role.Code,
                 Description = role.Description,
                 Permissions = perms,
+                UserCount = await _adminUserRepo.CountAsync(a => a.RoleId == role.Id),
                 CreateTime = role.CreateTime
             });
         }
@@ -415,7 +424,8 @@ public class RoleService : IRoleService
     public async Task<List<RoleDto>> GetAllAsync()
     {
         var roles = await _roleRepo.GetListAsync();
-        return roles.Select(role =>
+        var result = new List<RoleDto>();
+        foreach (var role in roles)
         {
             var perms = new List<string>();
             if (!string.IsNullOrEmpty(role.Permissions))
@@ -424,16 +434,18 @@ public class RoleService : IRoleService
                 catch { }
             }
 
-            return new RoleDto
+            result.Add(new RoleDto
             {
                 Id = role.Id,
                 Name = role.Name,
                 Code = role.Code,
                 Description = role.Description,
                 Permissions = perms,
+                UserCount = await _adminUserRepo.CountAsync(a => a.RoleId == role.Id),
                 CreateTime = role.CreateTime
-            };
-        }).ToList();
+            });
+        }
+        return result;
     }
 
     public async Task<RoleDto> GetDetailAsync(long id)
@@ -455,6 +467,7 @@ public class RoleService : IRoleService
             Code = role.Code,
             Description = role.Description,
             Permissions = perms,
+            UserCount = await _adminUserRepo.CountAsync(a => a.RoleId == role.Id),
             CreateTime = role.CreateTime
         };
     }

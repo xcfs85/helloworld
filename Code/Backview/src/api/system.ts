@@ -1,28 +1,53 @@
-/** 系统配置 API（基于 07-系统配置模块详细设计） */
+/** 系统配置 API（基于 07-系统配置模块详细设计）
+ *  - 后端 GET /config/list 返回扁平列表：[{config_key, config_value, config_type, ...}, ...]
+ *  - 单条更新：PUT /config/{key}   body: { value, type?, description? }
+ *  - 批量更新：POST /config/batch    body: [{ key, value, type?, description? }, ...]
+ */
 import service, { type PageResult } from '@/utils/request'
 import type { ColorChip } from '@/types'
 
-// 通用配置 - 使用 config 接口
+// ===== 通用配置 / AI 配置 =====
+
+export interface ConfigItem {
+  id?: string
+  config_key: string
+  config_value: string | null
+  config_type?: string
+  description?: string
+  status?: number
+  create_time?: string
+  update_time?: string
+}
+
+export interface SetConfigPayload {
+  key: string
+  value: string
+  type?: string
+  description?: string
+}
+
+/** 获取全部配置（通用 + AI 等所有扁平条目） */
 export function getGeneralConfig() {
-  return service.get<any, any>('/config/list')
+  return service.get<ConfigItem[]>('/config/list')
 }
 
-export function setGeneralConfig(data: { key: string; value: string; type?: string; description?: string }) {
-  return service.put(`/config/${data.key}`, { value: data.value, type: data.type, description: data.description })
+/** 单条保存（用于单 key 修改） */
+export function setGeneralConfig(data: SetConfigPayload) {
+  return service.put(`/config/${data.key}`, {
+    value: data.value,
+    type: data.type,
+    description: data.description
+  })
 }
 
-// AI配置 - 使用 config 接口
-export function getAIConfig() {
-  return service.get<any, any>('/config/list', { params: { config_type: 'number' } })
-}
-
-export function setAIConfig(data: { key: string; value: string }) {
-  return service.put(`/config/${data.key}`, { value: data.value })
+/** 批量保存（用于配置页一次性改多个 key） */
+export function batchSetConfig(data: SetConfigPayload[]) {
+  return service.post('/config/batch', data)
 }
 
 // 色板 - 使用 mard-color 接口
 export function listColors(query?: { page?: number; page_size?: number; category?: string; is_common?: number; status?: number }) {
-  return service.get<any, PageResult<any>>('/mard-color/list', { params: query })
+  return service.get<PageResult<any>>('/mard-color/list', { params: query })
 }
 
 export function addColor(data: Partial<ColorChip>) {
@@ -43,7 +68,7 @@ export function batchImportColors(data: any[]) {
 
 // 套装 - 使用 bead-kit 接口
 export function listKits(query?: { color_count?: number }) {
-  return service.get<any, any[]>('/bead-kit/list', { params: query })
+  return service.get<any[]>('/bead-kit/list', { params: query })
 }
 
 export function addKit(data: any) {

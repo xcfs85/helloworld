@@ -30,11 +30,20 @@ export interface User {
   mute_expire?: string
   post_count: number
   follower_count: number
+  diagram_count?: number
   gender?: 'male' | 'female' | 'unknown'
   city?: string
+  create_time?: string
+  email?: string
 }
 
 /* ===== 帖子 ===== */
+export interface PostAuthor {
+  id: string
+  nickname: string
+  avatar?: string
+}
+
 export interface Post {
   id: string
   type: 'work' | 'tutorial' | 'question'
@@ -42,19 +51,27 @@ export interface Post {
   cover: string
   images: string[]
   desc: string
-  author_id: string
-  author_nickname: string
-  author_avatar?: string
+  author: PostAuthor
   create_time: string
-  ip: string
-  device: string
-  risk_level: 'none' | 'low' | 'mid' | 'high'
+  publish_time?: string
+  content?: string
+  media?: { type: 'image' | 'video'; url: string; width?: number; height?: number }[]
+  ip?: string
+  device?: string
+  risk_level?: 'none' | 'low' | 'mid' | 'high'
   risk_tags?: string[]
   topics: string[]
+  topic_ids?: string[]
   diagram_id?: string
-  status: 'pending' | 'approved' | 'rejected' | 'offline'
+  status: 'pending' | 'approved' | 'rejected' | 'offline' | 'published'
+  review_status?: 'pending' | 'approved' | 'rejected' | 'offline'
   review_note?: string
   reject_reason?: string
+  is_favorited?: boolean
+  view_count?: number
+  like_count?: number
+  comment_count?: number
+  bead_params?: string
 }
 
 /* ===== 评论 ===== */
@@ -73,23 +90,37 @@ export interface Comment {
 /* ===== 模板 ===== */
 export interface Template {
   id: string
+  template_id?: string
   name: string
-  cover: string
-  previews: string[]
-  category_id: string
+  cover?: string
+  cover_url?: string
+  previews?: string[]
+  preview_urls?: string[]
+  description?: string
+  desc?: string
+  category: string
+  category_id?: string
   category_name: string
   tags: string[]
-  source: 'official' | 'creator'
-  creator_id: string
-  creator_name: string
+  source?: 'official' | 'creator'
+  source_type?: 'official' | 'creator'
+  creator_id?: string
+  creator_name?: string
+  creator?: { id: string; nickname: string }
   board_size: string
-  color_count: number
+  color_count?: number
+  total_colors?: number
   total_beads: number
+  bead_count?: number
   difficulty: 'beginner' | 'intermediate' | 'advanced'
-  style: string
-  duration: string
+  difficulty_name?: string
+  style?: string
+  duration?: string
   status: 'draft' | 'pending' | 'approved' | 'rejected' | 'offline'
-  submit_time: string
+  submit_time?: string
+  publish_time?: string
+  create_time?: string
+  is_featured?: boolean
   use_count: number
 }
 
@@ -180,9 +211,19 @@ export interface Push {
 export interface Role {
   id: string
   name: string
+  code?: string
   description: string
   permissions: string[]
   user_count: number
+  create_time: string
+}
+
+export interface RoleItem {
+  id: string
+  name: string
+  code?: string
+  description?: string
+  permissions: string[]
   create_time: string
 }
 
@@ -191,12 +232,12 @@ export interface AdminAccount {
   id: string
   username: string
   nickname: string
-  email: string
-  role_id: string
+  email?: string
+  role_id: string | number
   role_name: string
-  status: 'active' | 'disabled'
-  last_login_time: string
-  last_login_ip: string
+  status: string | number
+  last_login_time?: string
+  last_login_ip?: string
   create_time: string
 }
 
@@ -213,6 +254,7 @@ export interface OperationLog {
 }
 
 /* ===== 会员 ===== */
+// 会员列表项（与后端 UserListDto 对应）
 export interface Member {
   id: string
   user_id: string
@@ -224,6 +266,11 @@ export interface Member {
   total_paid: number
   pay_channel: 'wechat' | 'alipay' | 'appstore' | 'backend'
   create_time: string
+  // 兼容字段（后端 UserListDto 字段）
+  nickname?: string
+  is_member?: boolean
+  member_expire_time?: string
+  member_level?: string
 }
 
 /* ===== 色号 ===== */
@@ -241,10 +288,12 @@ export interface ColorChip {
 export interface Category {
   id: string
   name: string
+  code?: string
   icon?: string
   template_count: number
   sort: number
-  status: 'visible' | 'hidden'
+  status: 'visible' | 'hidden' | number
+  create_time?: string
 }
 
 /* ===== 标签 ===== */

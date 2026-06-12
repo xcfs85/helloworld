@@ -4,12 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHead from '@/components/PageHead.vue'
 import StatusTag from '@/components/StatusTag.vue'
-import { getPost, approvePost, rejectPost } from '@/api/post'
-import type { Post } from '@/types'
+import { getPost, approvePost, rejectPost, type PostDetailItem } from '@/api/post'
 
 const route = useRoute()
 const router = useRouter()
-const post = ref<Post | null>(null)
+const post = ref<PostDetailItem | null>(null)
 const rejectReason = ref('')
 const selectedReason = ref('')
 const note = ref('')
@@ -22,13 +21,13 @@ onMounted(async () => {
 })
 
 async function onApprove() {
-  await approvePost(post.value!.id, note.value)
+  await approvePost(post.value!.id)
   ElMessage.success('已通过审核')
   router.back()
 }
 async function onReject() {
   if (!selectedReason.value) { ElMessage.warning('请选择拒绝原因'); return }
-  await rejectPost(post.value!.id, selectedReason.value, note.value)
+  await rejectPost(post.value!.id, selectedReason.value)
   ElMessage.success('已拒绝')
   router.back()
 }
@@ -52,7 +51,7 @@ function coverFor(i: number) { return postCovers[i % postCovers.length] }
     <PageHead
       :crumbs="[{ label: '内容管理', to: '/post/review/list' }, { label: '帖子审核', to: '/post/review/list' }, { label: post.id }]"
       :title="`帖子审核详情`"
-      :sub="`${post.id} · 提交于 ${post.create_time}`"
+      :sub="`${post.id} · 提交于 ${post.publish_time || post.create_time}`"
     >
       <template #actions>
         <button class="btn btn-secondary" @click="router.back()">返回列表</button>
@@ -65,18 +64,18 @@ function coverFor(i: number) { return postCovers[i % postCovers.length] }
         <div class="panel">
           <div class="panel-head"><div class="ph-title">帖子信息</div></div>
           <div class="panel-body">
-            <div class="form-row"><div class="lbl">类型</div><div><StatusTag :variant="{ work: 'primary', tutorial: 'info', question: 'purple' }[post.type]">{{ { work: '作品', tutorial: '教程', question: '提问' }[post.type] }}</StatusTag></div></div>
+            <div class="form-row"><div class="lbl">类型</div><div><StatusTag :variant="({ work: 'primary', tutorial: 'info', question: 'purple' } as any)[post.type] || 'neutral'">{{ { work: '作品', tutorial: '教程', question: '提问' }[post.type as 'work' | 'tutorial' | 'question'] || post.type }}</StatusTag></div></div>
             <div class="form-row"><div class="lbl">标题</div><div style="font-weight: 600">{{ post.title }}</div></div>
             <div class="form-row">
               <div class="lbl">作者</div>
               <div class="row" style="gap: 8px">
-                <div class="av sm" :class="'c' + ((parseInt(post.author_id.slice(2)) % 6) + 1)">{{ post.author_nickname[0] }}</div>
-                <div>{{ post.author_nickname }} ({{ post.author_id }})</div>
+                <div class="av sm" :class="'c' + ((parseInt((post.author?.id || 'u_0').slice(2)) % 6) + 1)">{{ post.author?.nickname?.[0] || '?' }}</div>
+                <div>{{ post.author?.nickname }} ({{ post.author?.id }})</div>
               </div>
             </div>
-            <div class="form-row"><div class="lbl">发布时间</div><div>{{ post.create_time }}</div></div>
-            <div class="form-row"><div class="lbl">IP / 设备</div><div>{{ post.ip }} · {{ post.device }}</div></div>
-            <div class="form-row"><div class="lbl">话题</div><div>{{ post.topics.join(' ') }}</div></div>
+            <div class="form-row"><div class="lbl">发布时间</div><div>{{ post.publish_time || post.create_time }}</div></div>
+            <div class="form-row"><div class="lbl">IP / 设备</div><div>{{ post.author?.id ? '已记录' : '—' }}</div></div>
+            <div class="form-row"><div class="lbl">话题</div><div>{{ (post.topic_ids || []).join(' ') }}</div></div>
             <div v-if="post.diagram_id" class="form-row"><div class="lbl">关联图纸</div><div><a class="mono" style="color: var(--primary-ink)">{{ post.diagram_id }}</a></div></div>
           </div>
         </div>
@@ -88,7 +87,7 @@ function coverFor(i: number) { return postCovers[i % postCovers.length] }
               <div v-for="i in 9" :key="i" class="media-cell" :style="`background: ${coverFor(i - 1)}`"></div>
             </div>
             <div class="text-block">
-              <p>{{ post.desc }}</p>
+              <p>{{ post.content }}</p>
               <p class="muted">#生日礼物 #闺蜜 #拼豆日常</p>
             </div>
           </div>
@@ -148,8 +147,8 @@ function coverFor(i: number) { return postCovers[i % postCovers.length] }
             <div class="form-row">
               <div class="lbl">头像 / 昵称</div>
               <div class="row" style="gap: 10px">
-                <div class="av" :class="'c' + ((parseInt(post.author_id.slice(2)) % 6) + 1)">{{ post.author_nickname[0] }}</div>
-                <div><div style="font-weight: 600">{{ post.author_nickname }}</div><div class="muted small">{{ post.author_id }}</div></div>
+                <div class="av" :class="'c' + ((parseInt((post.author?.id || 'u_0').slice(2)) % 6) + 1)">{{ post.author?.nickname?.[0] || '?' }}</div>
+                <div><div style="font-weight: 600">{{ post.author?.nickname }}</div><div class="muted small">{{ post.author?.id }}</div></div>
               </div>
             </div>
             <div class="form-row"><div class="lbl">历史发帖</div><div>23</div></div>

@@ -73,7 +73,7 @@ public class StringExtensionsTests
     [Fact]
     public void MaskEmail_HidesLocalPart()
     {
-        Assert.Equal("p****@example.com", "pindou@example.com".MaskEmail());
+        Assert.Equal("pi****@example.com", "pindou@example.com".MaskEmail());
     }
 }
 

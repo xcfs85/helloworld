@@ -5,13 +5,12 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHead from '@/components/PageHead.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
-import { listPostReviews, approvePost, rejectPost, batchApprovePosts, batchRejectPosts } from '@/api/post'
-import type { Post } from '@/types'
+import { listPostReviews, approvePost, rejectPost, batchApprovePosts, batchRejectPosts, type PostReviewItem } from '@/api/post'
 
 const router = useRouter()
 const tab = ref('pending')
 const loading = ref(false)
-const list = ref<Post[]>([])
+const list = ref<PostReviewItem[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
@@ -47,20 +46,27 @@ const sideRisk = [
 async function load() {
   loading.value = true
   try {
-    const res: any = await listPostReviews({ ...filter, status: tab.value, page: page.value, page_size: pageSize.value })
-    list.value = res.list
-    total.value = res.total
+    const res = await listPostReviews({
+      page: page.value,
+      page_size: pageSize.value
+    }) as any
+    list.value = res?.list || []
+    total.value = res?.total || 0
+  } catch (e) {
+    console.error('加载审核列表失败:', e)
+    list.value = []
+    total.value = 0
   } finally { loading.value = false }
 }
 function search() { page.value = 1; load() }
 function reset() { filter.keyword = ''; filter.type = 'all'; filter.risk_level = 'all'; search() }
 
-async function onApprove(p: Post) {
+async function onApprove(p: PostReviewItem) {
   await approvePost(p.id)
   ElMessage.success('已通过')
   load()
 }
-async function onReject(p: Post) {
+async function onReject(p: PostReviewItem) {
   try {
     const { value } = await ElMessageBox.prompt('请输入拒绝原因', '拒绝帖子', { inputValue: '内容不符合规范' })
     await rejectPost(p.id, value)
@@ -84,7 +90,7 @@ async function onBatchReject() {
   } catch {}
 }
 
-function viewDetail(p: Post) { router.push({ name: 'post-review-detail', params: { id: p.id } }) }
+function viewDetail(p: PostReviewItem) { router.push({ name: 'post-review-detail', params: { id: p.id } }) }
 
 const postCovers = [
   'linear-gradient(135deg,#FFD2B0,#FF7A5A)',
@@ -95,7 +101,7 @@ const postCovers = [
   'linear-gradient(135deg,#E07777,#F5C45E)'
 ]
 
-function coverFor(p: Post) {
+function coverFor(p: PostReviewItem) {
   const idx = parseInt(p.id.slice(-1)) % postCovers.length
   return postCovers[idx]
 }
@@ -190,37 +196,37 @@ onMounted(load)
                     <div :style="`width: 36px; height: 36px; border-radius: 6px; background: ${coverFor(p)}; flex-shrink: 0`"></div>
                     <div style="min-width: 0">
                       <div style="font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px">{{ p.title }}</div>
-                      <div class="muted small">{{ p.images.length }} 图 · {{ p.topics.join(' ') }}</div>
+                      <div class="muted small">{{ p.media?.filter((m: any) => m.type === 'image').length || 0 }} 图</div>
                     </div>
                   </div>
                 </td>
                 <td>
-                  <StatusTag :variant="{ work: 'primary', tutorial: 'info', question: 'purple' }[p.type]">
-                    {{ { work: '作品', tutorial: '教程', question: '提问' }[p.type] }}
+                  <StatusTag :variant="(({ work: 'primary', tutorial: 'info', question: 'purple' } as any)[p.type] || 'neutral') as any">
+                    {{ ({ work: '作品', tutorial: '教程', question: '提问' } as any)[p.type] || p.type }}
                   </StatusTag>
                 </td>
                 <td>
                   <div class="user-cell">
-                    <div class="av sm" :class="'c' + ((parseInt(p.author_id.slice(2)) % 6) + 1)">{{ p.author_nickname[0] }}</div>
-                    <div class="meta"><div class="nm" style="font-size: 12px">{{ p.author_nickname }}</div><div class="id">{{ p.author_id }}</div></div>
+                    <div class="av sm" :class="'c' + ((parseInt((p.author?.id || 'u_0').slice(2)) % 6) + 1)">{{ p.author?.nickname?.[0] || '?' }}</div>
+                    <div class="meta"><div class="nm" style="font-size: 12px">{{ p.author?.nickname }}</div><div class="id">{{ p.author?.id }}</div></div>
                   </div>
                 </td>
-                <td class="muted">{{ p.create_time.slice(5) }}</td>
+                <td class="muted">{{ (p.publish_time || p.create_time).slice(5) }}</td>
                 <td>
-                  <StatusTag v-if="p.risk_level === 'none'" variant="ok">无</StatusTag>
+                  <StatusTag v-if="(p.risk_level || 'none') === 'none'" variant="ok">无</StatusTag>
                   <StatusTag v-else-if="p.risk_level === 'low'" variant="warn">低</StatusTag>
                   <StatusTag v-else-if="p.risk_level === 'mid'" variant="warn">中</StatusTag>
                   <StatusTag v-else variant="danger">高 · {{ p.risk_tags?.[0] || '风险' }}</StatusTag>
                 </td>
                 <td>
-                  <StatusTag :variant="{ pending: 'warn', approved: 'ok', rejected: 'danger', offline: 'neutral' }[p.status]">
-                    {{ { pending: '待审核', approved: '已通过', rejected: '已拒绝', offline: '已下架' }[p.status] }}
+                  <StatusTag :variant="(({ pending: 'warn', approved: 'ok', rejected: 'danger', offline: 'neutral' } as any)[(p.review_status || p.status) as string] || 'neutral') as any">
+                    {{ ({ pending: '待审核', approved: '已通过', rejected: '已拒绝', offline: '已下架' } as any)[(p.review_status || p.status) as string] }}
                   </StatusTag>
                 </td>
                 <td class="col-actions">
                   <button class="btn btn-xs btn-ghost" @click="viewDetail(p)">预览</button>
-                  <button v-if="p.status === 'pending'" class="btn btn-xs" style="color: var(--mint)" @click="onApprove(p)">通过</button>
-                  <button v-if="p.status === 'pending'" class="btn btn-xs btn-ghost" style="color: var(--rose)" @click="onReject(p)">拒绝</button>
+                  <button v-if="p.review_status === 'pending'" class="btn btn-xs" style="color: var(--mint)" @click="onApprove(p)">通过</button>
+                  <button v-if="p.review_status === 'pending'" class="btn btn-xs btn-ghost" style="color: var(--rose)" @click="onReject(p)">拒绝</button>
                 </td>
               </tr>
             </tbody>

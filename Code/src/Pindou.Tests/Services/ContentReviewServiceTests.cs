@@ -37,7 +37,7 @@ public class ContentReviewServiceTests
     [Fact]
     public async Task CheckAsync_ShouldPass_WhenNoSensitiveWords()
     {
-        _sensitiveRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _sensitiveRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>()))
             .ReturnsAsync(new List<SensitiveWord>());
 
         var (passed, reason, replaced) = await _contentReviewService.CheckAsync("正常内容");
@@ -49,7 +49,7 @@ public class ContentReviewServiceTests
     [Fact]
     public async Task CheckAsync_ShouldBlock_WhenLevel3Word()
     {
-        _sensitiveRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _sensitiveRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>()))
             .ReturnsAsync(new List<SensitiveWord>
             {
                 new SensitiveWord { Word = "badword", Level = 3, Type = "other", Status = 1 }
@@ -64,7 +64,7 @@ public class ContentReviewServiceTests
     [Fact]
     public async Task CheckAsync_ShouldReplace_WhenLevel2Word()
     {
-        _sensitiveRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _sensitiveRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>()))
             .ReturnsAsync(new List<SensitiveWord>
             {
                 new SensitiveWord { Word = "badword", Level = 2, ReplaceWord = "***", Type = "other", Status = 1 }
@@ -80,7 +80,7 @@ public class ContentReviewServiceTests
     [Fact]
     public async Task CheckAsync_ShouldPass_WhenLevel1Word()
     {
-        _sensitiveRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _sensitiveRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>()))
             .ReturnsAsync(new List<SensitiveWord>
             {
                 new SensitiveWord { Word = "warning", Level = 1, Type = "other", Status = 1 }
@@ -225,7 +225,7 @@ public class ContentReviewServiceTests
     [Fact]
     public async Task GetSensitiveWordsAsync_ShouldReturnWords()
     {
-        _sensitiveRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _sensitiveRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>()))
             .ReturnsAsync(new List<SensitiveWord>
             {
                 new SensitiveWord { Id = "w1", Word = "badword", Level = 2, Type = "other", ReplaceWord = "***", Status = 1 }
@@ -241,7 +241,7 @@ public class ContentReviewServiceTests
     [Fact]
     public async Task GetSensitiveWordsAsync_ShouldFilterByType()
     {
-        _sensitiveRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>(), It.IsAny<string>(), It.IsAny<bool>()))
+        _sensitiveRepoMock.Setup(r => r.GetListAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>()))
             .ReturnsAsync(new List<SensitiveWord>());
 
         var result = await _contentReviewService.GetSensitiveWordsAsync("politics");
@@ -258,7 +258,9 @@ public class ContentReviewServiceTests
     public async Task AddSensitiveWordAsync_ShouldAddWord()
     {
         _sensitiveRepoMock.Setup(r => r.AnyAsync(It.IsAny<Expression<Func<SensitiveWord, bool>>>())).ReturnsAsync(false);
-        _sensitiveRepoMock.Setup(r => r.InsertAsync(It.IsAny<SensitiveWord>())).ReturnsAsync("w1");
+        _sensitiveRepoMock.Setup(r => r.InsertAsync(It.IsAny<SensitiveWord>()))
+            .Callback<SensitiveWord>(w => w.Id = "w1")
+            .ReturnsAsync("w1");
 
         var request = new AddSensitiveWordRequest { Word = "badword", Level = 2, Type = "other" };
         var result = await _contentReviewService.AddSensitiveWordAsync(request);

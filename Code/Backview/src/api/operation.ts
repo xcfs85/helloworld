@@ -5,7 +5,7 @@ import type { PageQuery, Banner, Topic, Special, Push } from '@/types'
 
 // Banner
 export function listBanners(query: PageQuery & { position?: string; status?: string }) {
-  return service.get<any, PageResult<Banner>>('/banner/list', { params: query })
+  return service.get<PageResult<Banner>>('/banner/list', { params: query })
 }
 export function addBanner(data: Partial<Banner>) {
   return service.post('/banner', data)
@@ -19,7 +19,7 @@ export function deleteBanner(id: string) {
 
 // 话题
 export function listTopics(query: PageQuery & { status?: string; is_official?: string; keyword?: string }) {
-  return service.get<any, PageResult<Topic>>('/topic/list', { params: query })
+  return service.get<PageResult<Topic>>('/topic/list', { params: query })
 }
 export function addTopic(data: Partial<Topic>) {
   return service.post('/topic', data)
@@ -36,7 +36,7 @@ export function openTopic(id: string) {
 
 // 专题
 export function listSpecials(query: PageQuery & { status?: string }) {
-  return service.get<any, PageResult<Special>>('/special-topic/list', { params: query })
+  return service.get<PageResult<Special>>('/special-topic/list', { params: query })
 }
 export function addSpecial(data: Partial<Special>) {
   return service.post('/special-topic', data)
@@ -50,7 +50,7 @@ export function deleteSpecial(id: string) {
 
 // 推送
 export function listPushes(query: PageQuery & { status?: string; push_type?: string; target_type?: string }) {
-  return service.get<any, PageResult<Push>>('/push/list', { params: query })
+  return service.get<PageResult<Push>>('/push/list', { params: query })
 }
 export function createPush(data: { title: string; content: string; target_type?: string; target_ids?: string[] }) {
   return service.post('/push', data)

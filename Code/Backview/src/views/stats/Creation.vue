@@ -1,16 +1,40 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import PageHead from '@/components/PageHead.vue'
-import { getCreationStats } from '@/api/stats'
+import { getTrends, type DailyStats } from '@/api/stats'
 
-const data = ref<any>(null)
+const data = ref<any>({
+  generation: [] as number[],
+  color_distribution: [] as { range: string; value: number }[],
+  difficulty: { beginner: 0, intermediate: 0, advanced: 0 },
+  style: { '写实': 0, '卡通': 0, '写意': 0, '抽象': 0 }
+})
 
 onMounted(async () => {
-  data.value = await getCreationStats()
-  drawGeneration()
-  drawColor()
-  drawDifficulty()
-  drawStyle()
+  try {
+    const end = new Date()
+    const start = new Date()
+    start.setDate(start.getDate() - 13)
+    const fmt = (d: Date) => d.toISOString().split('T')[0]
+    const list: DailyStats[] = await getTrends({ start: fmt(start), end: fmt(end) })
+
+    // 累加近 14 天数据
+    const totalGen = list.reduce((s, d) => s + (d.generation_count ?? 0), 0)
+    const totalExport = list.reduce((s, d) => s + (d.export_count ?? 0), 0)
+    data.value = {
+      ...data.value,
+      generation: list.map(d => d.generation_count ?? 0),
+      // 用累加值给顶部 KPI 卡片使用
+      _totals: { generation: totalGen, export: totalExport }
+    } as any
+
+    drawGeneration()
+    drawColor()
+    drawDifficulty()
+    drawStyle()
+  } catch (e) {
+    console.error('[Stats/Creation] 加载数据失败', e)
+  }
 })
 
 function drawGeneration() {
@@ -41,6 +65,7 @@ function drawGeneration() {
 function drawColor() {
   const el = document.getElementById('colorChart')
   if (!el) return
+  const cd = data.value?.color_distribution || []
   import('echarts').then(echarts => {
     const chart = echarts.init(el)
     chart.setOption({
@@ -48,11 +73,13 @@ function drawColor() {
         type: 'pie',
         radius: ['55%', '85%'],
         label: { show: false },
-        data: data.value.color_distribution.map((c: any, i: number) => ({
-          value: c.value,
-          name: c.range,
-          itemStyle: { color: ['#FF7A5A', '#F5C45E', '#4FBB8A', '#6FA8D4', '#9A7FCC'][i] }
-        }))
+        data: cd.length
+          ? cd.map((c: any, i: number) => ({
+              value: c.value,
+              name: c.range,
+              itemStyle: { color: ['#FF7A5A', '#F5C45E', '#4FBB8A', '#6FA8D4', '#9A7FCC'][i] }
+            }))
+          : [{ value: 1, name: '暂无数据', itemStyle: { color: '#E6DFD2' } }]
       }]
     })
     window.addEventListener('resize', () => chart.resize())
@@ -61,9 +88,9 @@ function drawColor() {
 function drawDifficulty() {
   const el = document.getElementById('diffChart')
   if (!el) return
+  const d = data.value?.difficulty || { beginner: 0, intermediate: 0, advanced: 0 }
   import('echarts').then(echarts => {
     const chart = echarts.init(el)
-    const d = data.value.difficulty
     chart.setOption({
       series: [{
         type: 'pie', radius: '70%',
@@ -81,18 +108,18 @@ function drawDifficulty() {
 function drawStyle() {
   const el = document.getElementById('styleChart')
   if (!el) return
+  const s = data.value?.style || {}
   import('echarts').then(echarts => {
     const chart = echarts.init(el)
-    const s = data.value.style
     chart.setOption({
       series: [{
         type: 'pie', radius: '70%',
         label: { show: true, fontSize: 11, color: '#1F1A16' },
         data: [
-          { value: s['写实'], name: '写实 ' + s['写实'] + '%', itemStyle: { color: '#FF7A5A' } },
-          { value: s['卡通'], name: '卡通 ' + s['卡通'] + '%', itemStyle: { color: '#F5C45E' } },
-          { value: s['写意'], name: '写意 ' + s['写意'] + '%', itemStyle: { color: '#6FA8D4' } },
-          { value: s['抽象'], name: '抽象 ' + s['抽象'] + '%', itemStyle: { color: '#9A7FCC' } }
+          { value: s['写实'] || 0, name: '写实 ' + (s['写实'] || 0) + '%', itemStyle: { color: '#FF7A5A' } },
+          { value: s['卡通'] || 0, name: '卡通 ' + (s['卡通'] || 0) + '%', itemStyle: { color: '#F5C45E' } },
+          { value: s['写意'] || 0, name: '写意 ' + (s['写意'] || 0) + '%', itemStyle: { color: '#6FA8D4' } },
+          { value: s['抽象'] || 0, name: '抽象 ' + (s['抽象'] || 0) + '%', itemStyle: { color: '#9A7FCC' } }
         ]
       }]
     })
@@ -106,11 +133,11 @@ function drawStyle() {
     <PageHead
       :crumbs="[{ label: '数据统计' }, { label: '创作分析' }]"
       title="创作分析"
-      sub="近 30 天 AI 生成 5,678 · 模板使用 12,345"
+      :sub="'近 14 天 AI 生成 ' + (data?._totals?.generation || 0).toLocaleString() + ' · 模板/色号/难度/风格待后端提供'"
     >
       <template #actions>
         <div class="date-range">
-          <input value="2026-05-08" />
+          <input value="2026-05-24" />
           <span class="sep">→</span>
           <input value="2026-06-07" />
         </div>
@@ -119,10 +146,10 @@ function drawStyle() {
     </PageHead>
 
     <div class="kpi-row">
-      <div class="kpi-card"><div class="kpi-lbl">AI 生成次数</div><div class="kpi">5,678</div><div class="kpi-sub"><span class="up">↑ 8.9%</span></div></div>
-      <div class="kpi-card"><div class="kpi-lbl">模板使用量</div><div class="kpi">12,345</div><div class="kpi-sub"><span class="up">↑ 12.3%</span></div></div>
-      <div class="kpi-card"><div class="kpi-lbl">导出作品</div><div class="kpi">3,850</div><div class="kpi-sub"><span class="up">↑ 5.6%</span></div></div>
-      <div class="kpi-card"><div class="kpi-lbl">导出率</div><div class="kpi">67.8%</div><div class="kpi-sub"><span class="up">↑ 1.2%</span></div></div>
+      <div class="kpi-card"><div class="kpi-lbl">AI 生成次数（近 14 天）</div><div class="kpi">{{ (data?._totals?.generation || 0).toLocaleString() }}</div><div class="kpi-sub"><span class="up">实时</span></div></div>
+      <div class="kpi-card"><div class="kpi-lbl">模板使用量</div><div class="kpi">--</div><div class="kpi-sub"><span class="muted small">后端未提供</span></div></div>
+      <div class="kpi-card"><div class="kpi-lbl">导出作品（近 14 天）</div><div class="kpi">{{ (data?._totals?.export || 0).toLocaleString() }}</div><div class="kpi-sub"><span class="up">实时</span></div></div>
+      <div class="kpi-card"><div class="kpi-lbl">导出率</div><div class="kpi">--</div><div class="kpi-sub"><span class="muted small">后端未提供</span></div></div>
     </div>
 
     <div class="panel">
@@ -143,6 +170,7 @@ function drawStyle() {
               <span>{{ c.range }} 色</span>
               <span style="font-weight: 600; margin-left: auto">{{ c.value }}%</span>
             </div>
+            <div v-if="!(data?.color_distribution || []).length" class="empty-hint">色数分布待后端提供（候选：<code>/statistics/color-distribution</code>）</div>
           </div>
         </div>
       </div>
@@ -177,4 +205,7 @@ function drawStyle() {
 .legend { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--ink-2); }
 .lg { display: flex; align-items: center; gap: 8px; }
 .lg span:not(:first-child) { color: var(--ink-2); }
+.empty-hint { padding: 8px 0; color: var(--ink-3); font-size: 11.5px; }
+.empty-hint code { font-family: var(--mono); font-size: 11px; background: var(--bg-2); padding: 1px 6px; border-radius: 4px; }
+.muted.small { font-size: 11px; color: var(--ink-3); }
 </style>
