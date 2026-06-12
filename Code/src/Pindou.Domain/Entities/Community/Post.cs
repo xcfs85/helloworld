@@ -69,6 +69,14 @@ public class Post : UuidEntity
     [SugarColumn(Length = 200, IsNullable = true)]
     public string? ReviewReason { get; set; }
 
+    /// <summary>AI风险等级:none/low/mid/high</summary>
+    [SugarColumn(Length = 10, IsNullable = false, DefaultValue = "'none'")]
+    public string RiskLevel { get; set; } = "none";
+
+    /// <summary>AI风险标签(JSON数组)</summary>
+    [SugarColumn(ColumnDataType = "text", IsNullable = true)]
+    public string? RiskTags { get; set; }
+
     /// <summary>发布时间</summary>
     [SugarColumn(IsNullable = false)]
     public DateTime PublishTime { get; set; } = DateTime.Now;

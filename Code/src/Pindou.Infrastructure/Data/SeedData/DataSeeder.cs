@@ -447,20 +447,22 @@ public class DataSeeder
 
     private async Task SeedPostsAsync()
     {
-        if (await _postRepo.AnyAsync(p => true)) return;
         var users = await _userRepo.GetListAsync();
         var topics = await _topicRepo.GetListAsync();
         if (users.Count == 0 || topics.Count == 0) return;
 
+        var existingTitles = (await _postRepo.GetListAsync()).Select(p => p.Title).ToHashSet();
+
         var posts = new List<Post>
         {
+            // ========== work (作品) ==========
             new()
             {
                 Id = Guid.NewGuid().ToString(),
                 UserId = users[0].Id,
                 Type = "work",
                 Title = "我的第一个圣诞树拼豆",
-                Content = "第一次尝试29x29的圣诞树,配色参考了网上的教程,完成后超有成就感!",
+                Content = "第一次尝试29x29的圣诞树,配色参考了网上的教程,完成后超有成就感!用了红绿白三种主色,树顶的星星用金色点缀,放在书桌上很有节日氛围。",
                 Media = "[\"https://picsum.photos/seed/post1/600/600\"]",
                 TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[0].Id }),
                 LikeCount = 12, CommentCount = 0, FavoriteCount = 5, ViewCount = 88,
@@ -472,7 +474,7 @@ public class DataSeeder
                 UserId = users[1].Id,
                 Type = "work",
                 Title = "柴犬拼豆分享",
-                Content = "我家狗子同款,毛色用了6个色号,舌头用粉色点缀,可可爱爱~",
+                Content = "我家狗子同款,毛色用了6个色号,舌头用粉色点缀,可可爱爱~底板选的29x29白色,整体效果很温馨。",
                 Media = "[\"https://picsum.photos/seed/post2/600/600\"]",
                 TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[2].Id }),
                 BeadParams = "{\"boardSize\":\"29x29\",\"totalBeads\":580,\"totalColors\":8}",
@@ -482,22 +484,10 @@ public class DataSeeder
             new()
             {
                 Id = Guid.NewGuid().ToString(),
-                UserId = users[2].Id,
-                Type = "tutorial",
-                Title = "【教程】如何选色让拼豆更协调",
-                Content = "分享我选色的三个小技巧:1.主色不超过3个 2.邻近色搭配 3.点缀色提亮...",
-                Media = "[\"https://picsum.photos/seed/post3/600/600\"]",
-                TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[0].Id, topics[1].Id }),
-                LikeCount = 128, CommentCount = 0, FavoriteCount = 80, ViewCount = 1500,
-                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-7)
-            },
-            new()
-            {
-                Id = Guid.NewGuid().ToString(),
                 UserId = users[3].Id,
                 Type = "work",
                 Title = "像素风小怪兽",
-                Content = "今天完成的小怪兽,白色底板+高饱和度配色,放在桌面上超治愈!",
+                Content = "今天完成的小怪兽,白色底板+高饱和度配色,放在桌面上超治愈!眼睛部分用了黑色和白色对比,很有神。",
                 Media = "[\"https://picsum.photos/seed/post4/600/600\"]",
                 TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[3].Id }),
                 BeadParams = "{\"boardSize\":\"29x29\",\"totalBeads\":820,\"totalColors\":12}",
@@ -507,15 +497,380 @@ public class DataSeeder
             new()
             {
                 Id = Guid.NewGuid().ToString(),
+                UserId = users[2].Id,
+                Type = "work",
+                Title = "二次元老婆 - 雏田",
+                Content = "用拼豆还原了我最喜欢的火影忍者角色雏田,29x29的底板,皮肤用了肤色系,眼睛用蓝色,头发用淡紫色,完成度很高!",
+                Media = "[\"https://picsum.photos/seed/post-work-1/600/600\"]",
+                TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[1].Id }),
+                BeadParams = "{\"boardSize\":\"29x29\",\"totalBeads\":700,\"totalColors\":15}",
+                LikeCount = 188, CommentCount = 0, FavoriteCount = 92, ViewCount = 2560,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-2)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[4].Id,
+                Type = "work",
+                Title = "星巴克咖啡拉花图案",
+                Content = "跟风做了一个星巴克的Logo拼豆,用了咖啡色的色号,配上白色底板,很有质感。适合放在办公桌上。",
+                Media = "[\"https://picsum.photos/seed/post-work-2/600/600\"]",
+                BeadParams = "{\"boardSize\":\"29x29\",\"totalBeads\":450,\"totalColors\":5}",
+                LikeCount = 45, CommentCount = 0, FavoriteCount = 15, ViewCount = 320,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-4)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[0].Id,
+                Type = "work",
+                Title = "宠物柯基小短腿",
+                Content = "柯基的屁屁真的太可爱了!用拼豆做了一个侧躺的柯基,黄色的毛色用了3个色号渐变,尾巴短短的超级萌。",
+                Media = "[\"https://picsum.photos/seed/post-work-3/600/600\"]",
+                TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[2].Id }),
+                BeadParams = "{\"boardSize\":\"29x29\",\"totalBeads\":620,\"totalColors\":7}",
+                LikeCount = 98, CommentCount = 0, FavoriteCount = 45, ViewCount = 890,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-6)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[1].Id,
+                Type = "work",
+                Title = "像素版超级马里奥",
+                Content = "经典的红帽子水管工来啦!全像素风格还原,用了红蓝黄黑四种经典色,唤起童年回忆~",
+                Media = "[\"https://picsum.photos/seed/post-work-4/600/600\"]",
+                TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[3].Id }),
+                BeadParams = "{\"boardSize\":\"29x29\",\"totalBeads\":580,\"totalColors\":4}",
+                LikeCount = 156, CommentCount = 0, FavoriteCount = 78, ViewCount = 1800,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddHours(-12)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[3].Id,
+                Type = "work",
+                Title = "国风仙鹤图案",
+                Content = "尝试了国风主题,仙鹤用了白色和红色渐变,背景用了淡蓝色,整体很有传统美感。",
+                Media = "[\"https://picsum.photos/seed/post-work-5/600/600\"]",
+                BeadParams = "{\"boardSize\":\"29x29\",\"totalBeads\":750,\"totalColors\":8}",
+                LikeCount = 72, CommentCount = 0, FavoriteCount = 28, ViewCount = 560,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddHours(-3)
+            },
+
+            // ========== request (求图) ==========
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
                 UserId = users[4].Id,
                 Type = "request",
                 Title = "求一个皮卡丘的图纸~",
-                Content = "想要29x29大小的皮卡丘,有成品图的姐妹求分享,感谢!",
+                Content = "想要29x29大小的皮卡丘,有成品图的姐妹求分享,感谢!最好是颜色鲜艳一点的",
                 Media = "[]",
                 Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddHours(-6)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[2].Id,
+                Type = "request",
+                Title = "求动漫头像拼豆图纸",
+                Content = "想要一个动漫风格的女生头像,29x29或37x37都可以,最好有详细的色号标注,谢谢各位大神!",
+                Media = "[]",
+                TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[1].Id }),
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-1)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[0].Id,
+                Type = "request",
+                Title = "求简单的新年祝福图案",
+                Content = "过年想做一些拼豆送人,想要简单易上手的,29x29以内,有财神、福字之类的最好啦",
+                Media = "[]",
+                TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[0].Id }),
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-2)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[4].Id,
+                Type = "request",
+                Title = "求猫咪图案图纸",
+                Content = "想给女儿做一个猫咪拼豆,求简单可爱的猫咪图案,颜色不要太多,10色以内为宜",
+                Media = "[]",
+                TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[2].Id }),
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddHours(-18)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[1].Id,
+                Type = "request",
+                Title = "求情侣头像拼豆图纸",
+                Content = "和男朋友想做一个情侣款的拼豆,有没有简单的情侣头像推荐呀,不要太大,方便放在桌上",
+                Media = "[]",
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddHours(-8)
+            },
+
+            // ========== tutorial (教程) ==========
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[2].Id,
+                Type = "tutorial",
+                Title = "【教程】如何选色让拼豆更协调",
+                Content = "分享我选色的三个小技巧:\n\n1.主色不超过3个\n2.邻近色搭配\n3.点缀色提亮\n\n还有更多配色心得欢迎评论区交流~",
+                Media = "[\"https://picsum.photos/seed/post3/600/600\"]",
+                TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[0].Id, topics[1].Id }),
+                LikeCount = 128, CommentCount = 0, FavoriteCount = 80, ViewCount = 15000,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-7)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[0].Id,
+                Type = "tutorial",
+                Title = "【教程】新手入门指南 - 底板选择",
+                Content = "很多新手问我底板怎么选,今天详细介绍一下:\n\n1. 29x29 适合简单图案,新手推荐\n2. 37x37 中等难度,细节更多\n3. 50x50 适合复杂图案\n\n新手建议从29开始,循序渐进!",
+                Media = "[\"https://picsum.photos/seed/post-tutorial-1/600/600\"]",
+                LikeCount = 256, CommentCount = 0, FavoriteCount = 168, ViewCount = 28000,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-10)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[3].Id,
+                Type = "tutorial",
+                Title = "【教程】如何快速对位拼豆图纸",
+                Content = "分享一个提高效率的小技巧:使用透明定位板!\n\n1. 先把图纸铺平\n2. 透明板放在图纸上\n3. 按颜色分区对位\n\n这样可以省去很多对齐的时间,亲测效率提升50%!",
+                Media = "[\"https://picsum.photos/seed/post-tutorial-2/600/600\"]",
+                LikeCount = 89, CommentCount = 0, FavoriteCount = 45, ViewCount = 9200,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-5)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[1].Id,
+                Type = "tutorial",
+                Title = "【教程】MARD色号入门指南",
+                Content = "很多小伙伴不知道色号怎么选,整理了一份常用色号推荐:\n\n基础色: M01白 M02黑 M03红 M05黄 M06绿\n进阶色: M04橙 M07天蓝 M08深蓝 M09紫 M10粉\n肤色推荐: H01肤色\n\n建议新手先买基础48色套装~",
+                Media = "[\"https://picsum.photos/seed/post-tutorial-3/600/600\"]",
+                LikeCount = 198, CommentCount = 0, FavoriteCount = 112, ViewCount = 15600,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-3)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[4].Id,
+                Type = "tutorial",
+                Title = "【教程】如何保存完成的拼豆作品",
+                Content = "拼豆完成后怎么保存?分享我的方法:\n\n1. 用塑封机简单塑封\n2. 放到相框里做装饰\n3. 用热熔胶固定(要小心烫伤)\n\n推荐第二种,既美观又能长期保存!",
+                Media = "[\"https://picsum.photos/seed/post-tutorial-4/600/600\"]",
+                LikeCount = 76, CommentCount = 0, FavoriteCount = 38, ViewCount = 6800,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-1)
+            },
+
+            // ========== discussion (讨论) ==========
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[0].Id,
+                Type = "discussion",
+                Title = "大家一般在哪买拼豆材料?",
+                Content = "入坑半年了,试过好几个渠道:\n- 淘宝: 品类全但质量参差不齐\n- 京东: 物流快但价格偏贵\n- 拼多多: 便宜但色号经常不全\n\n大家有什么推荐吗?或者有什么避坑指南?",
+                Media = "[]",
+                LikeCount = 45, CommentCount = 0, FavoriteCount = 8, ViewCount = 1200,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-2)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[1].Id,
+                Type = "discussion",
+                Title = "拼豆到底是拼豆还是拼拼豆?",
+                Content = "今天和朋友争论起来了,我说是拼豆(chuan dou),朋友说是拼拼豆(pin pin dou),快来评评理!",
+                Media = "[]",
+                LikeCount = 89, CommentCount = 0, FavoriteCount = 12, ViewCount = 2800,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-4)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[2].Id,
+                Type = "discussion",
+                Title = "你们觉得29x29够用吗?",
+                Content = "我入坑的时候只买了29x29的底板,现在想做更复杂的图案发现不够用了。你们都用什么尺寸的?建议新手直接买多大?",
+                Media = "[]",
+                LikeCount = 56, CommentCount = 0, FavoriteCount = 10, ViewCount = 1560,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-1)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[3].Id,
+                Type = "discussion",
+                Title = "拼豆算不算一种艺术创作?",
+                Content = "最近在思考这个问题。拼豆需要设计图纸、选色搭配、细节处理,感觉和画画、十字绣很像。你们觉得拼豆算是艺术吗?",
+                Media = "[]",
+                LikeCount = 124, CommentCount = 0, FavoriteCount = 25, ViewCount = 3200,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddHours(-20)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[4].Id,
+                Type = "discussion",
+                Title = "送给朋友什么拼豆礼物比较好?",
+                Content = "朋友生日快到了,想亲手做一个拼豆送给她。她喜欢可达鸭和草莓,有没有什么好的创意推荐?预算100以内~",
+                Media = "[]",
+                TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[1].Id, topics[2].Id }),
+                LikeCount = 67, CommentCount = 0, FavoriteCount = 15, ViewCount = 1890,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddHours(-10)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[0].Id,
+                Type = "discussion",
+                Title = "拼豆会褪色吗?怎么保养?",
+                Content = "做了几个拼豆作品放在窗边,最近发现颜色好像变淡了...想问下大家是怎么保养的?要避免阳光直射吗?",
+                Media = "[]",
+                LikeCount = 38, CommentCount = 0, FavoriteCount = 6, ViewCount = 980,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddDays(-3)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[1].Id,
+                Type = "discussion",
+                Title = "你们都用哪个AI生成拼豆图纸?",
+                Content = "试了几个AI工具,感觉效果参差不齐。有的是颜色太多,有的是细节丢失严重。大家都在用什么工具?求推荐!",
+                Media = "[]",
+                LikeCount = 92, CommentCount = 0, FavoriteCount = 18, ViewCount = 2400,
+                Status = "active", ReviewStatus = "approved", PublishTime = DateTime.Now.AddHours(-5)
+            },
+
+            // ========== 审核状态 + AI风险等级测试 ==========
+
+            // pending + none (正常帖子待审核)
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[2].Id,
+                Type = "work",
+                Title = "测试待审核帖子-无风险",
+                Content = "这是一条待审核的正常帖子内容,用于测试审核流程。刚提交的作品,等待管理员审核。",
+                Media = "[\"https://picsum.photos/seed/post-pending-none/600/600\"]",
+                LikeCount = 0, CommentCount = 0, FavoriteCount = 0, ViewCount = 10,
+                Status = "active", ReviewStatus = "pending", RiskLevel = "none", PublishTime = DateTime.Now.AddHours(-1)
+            },
+
+            // pending + low (低风险-含广告词)
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[0].Id,
+                Type = "discussion",
+                Title = "测试低风险帖子-疑似广告",
+                Content = "拼豆兼职赚钱，日入500，有兴趣的可以了解一下~只是分享经验啦",
+                Media = "[]",
+                LikeCount = 0, CommentCount = 0, FavoriteCount = 0, ViewCount = 5,
+                Status = "active", ReviewStatus = "pending", RiskLevel = "low",
+                RiskTags = "[\"广告\",\"兼职\"]", PublishTime = DateTime.Now.AddHours(-2)
+            },
+
+            // pending + mid (中风险-疑似引流)
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[3].Id,
+                Type = "work",
+                Title = "测试中风险帖子-疑似引流",
+                Content = "加我微信二维码，免费送拼豆材料包！拼豆微信群招新中",
+                Media = "[\"https://picsum.photos/seed/post-pending-mid/600/600\"]",
+                BeadParams = "{\"boardSize\":\"29x29\",\"totalBeads\":300,\"totalColors\":4}",
+                LikeCount = 0, CommentCount = 0, FavoriteCount = 0, ViewCount = 8,
+                Status = "active", ReviewStatus = "pending", RiskLevel = "mid",
+                RiskTags = "[\"引流\",\"联系方式\"]", PublishTime = DateTime.Now.AddHours(-3)
+            },
+
+            // pending + high (高风险-违规内容)
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[1].Id,
+                Type = "work",
+                Title = "测试高风险帖子-违规内容",
+                Content = "赌博代刷暴力血腥内容测试帖子,包含多个拦截级敏感词",
+                Media = "[]",
+                LikeCount = 0, CommentCount = 0, FavoriteCount = 0, ViewCount = 3,
+                Status = "active", ReviewStatus = "pending", RiskLevel = "high",
+                RiskTags = "[\"赌博\",\"暴力\",\"代刷\"]", PublishTime = DateTime.Now.AddHours(-4)
+            },
+
+            // pending + low (求图帖子含轻微广告)
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[4].Id,
+                Type = "request",
+                Title = "测试低风险求图帖子",
+                Content = "求一个可爱猫咪的图纸,拼多多砍一刀帮我凑个套装呗~",
+                Media = "[]",
+                LikeCount = 0, CommentCount = 0, FavoriteCount = 0, ViewCount = 2,
+                Status = "active", ReviewStatus = "pending", RiskLevel = "low",
+                RiskTags = "[\"其他平台\"]", PublishTime = DateTime.Now.AddMinutes(-30)
+            },
+
+            // pending + none (教程帖子待审核)
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[2].Id,
+                Type = "tutorial",
+                Title = "测试无风险教程帖子",
+                Content = "【教程】拼豆熨烫技巧分享:温度控制在中等,熨烫时间10-15秒,注意不要移动底板~",
+                Media = "[\"https://picsum.photos/seed/post-pending-tutorial/600/600\"]",
+                LikeCount = 0, CommentCount = 0, FavoriteCount = 0, ViewCount = 6,
+                Status = "active", ReviewStatus = "pending", RiskLevel = "none", PublishTime = DateTime.Now.AddMinutes(-45)
+            },
+
+            // rejected + mid (中风险被拒绝)
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[4].Id,
+                Type = "work",
+                Title = "测试被拒绝的帖子-中风险",
+                Content = "这是一条被拒绝的帖子,内容包含疑似引流信息。",
+                Media = "[]",
+                LikeCount = 0, CommentCount = 0, FavoriteCount = 0, ViewCount = 5,
+                Status = "active", ReviewStatus = "rejected", ReviewReason = "内容包含敏感信息", RiskLevel = "mid",
+                RiskTags = "[\"引流\"]", PublishTime = DateTime.Now.AddDays(-2)
+            },
+
+            // approved + low (已通过但低风险-被替换过敏感词)
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                UserId = users[0].Id,
+                Type = "work",
+                Title = "圣诞拼豆分享-含替换词",
+                Content = "今年的圣诞拼豆完成啦!红色和绿色的搭配很有[推广]感,推荐大家试试",
+                Media = "[\"https://picsum.photos/seed/post-approved-low/600/600\"]",
+                TopicIds = System.Text.Json.JsonSerializer.Serialize(new[] { topics[0].Id }),
+                BeadParams = "{\"boardSize\":\"29x29\",\"totalBeads\":560,\"totalColors\":6}",
+                LikeCount = 22, CommentCount = 0, FavoriteCount = 8, ViewCount = 150,
+                Status = "active", ReviewStatus = "approved", RiskLevel = "low",
+                RiskTags = "[\"广告(已替换)\"]", PublishTime = DateTime.Now.AddDays(-8)
             }
         };
-        await _postRepo.InsertRangeAsync(posts);
+
+        // 按标题去重，只插入不存在的帖子
+        var newPosts = posts.Where(p => !existingTitles.Contains(p.Title)).ToList();
+        if (newPosts.Count > 0)
+            await _postRepo.InsertRangeAsync(newPosts);
     }
 
     private async Task SeedCommentsAsync()
@@ -526,11 +881,36 @@ public class DataSeeder
         if (users.Count == 0 || posts.Count == 0) return;
         var comments = new List<Comment>
         {
+            // 作品帖评论
             new() { Id = Guid.NewGuid().ToString(), PostId = posts[0].Id, UserId = users[1].Id, Content = "好可爱!请问用的是什么色号?", LikeCount = 3, Status = "active" },
             new() { PostId = posts[0].Id, UserId = users[2].Id, Content = "配色很好看,期待更多作品~", LikeCount = 5, Status = "active" },
             new() { PostId = posts[1].Id, UserId = users[0].Id, Content = "柴犬同款,哈哈好可爱", LikeCount = 2, Status = "active" },
-            new() { PostId = posts[2].Id, UserId = users[0].Id, Content = "教程很实用,收藏了!", LikeCount = 8, Status = "active" },
-            new() { PostId = posts[3].Id, UserId = users[1].Id, Content = "配色绝了,请问配色比例怎么选?", LikeCount = 4, Status = "active" }
+            new() { PostId = posts[3].Id, UserId = users[1].Id, Content = "配色绝了,请问配色比例怎么选?", LikeCount = 4, Status = "active" },
+            new() { PostId = posts[4].Id, UserId = users[0].Id, Content = "雏田太美了!色号能分享一下吗?", LikeCount = 12, Status = "active" },
+            new() { PostId = posts[4].Id, UserId = users[3].Id, Content = "二次元拼豆永远的神!", LikeCount = 8, Status = "active" },
+            new() { PostId = posts[7].Id, UserId = users[2].Id, Content = "马里奥经典!童年回忆杀", LikeCount = 6, Status = "active" },
+            new() { PostId = posts[8].Id, UserId = users[0].Id, Content = "国风太美了,仙鹤的渐变做得真好", LikeCount = 3, Status = "active" },
+
+            // 教程帖评论
+            new() { PostId = posts[9].Id, UserId = users[0].Id, Content = "教程很实用,收藏了!", LikeCount = 8, Status = "active" },
+            new() { PostId = posts[10].Id, UserId = users[4].Id, Content = "新手福音!终于知道怎么选底板了", LikeCount = 15, Status = "active" },
+            new() { PostId = posts[10].Id, UserId = users[2].Id, Content = "建议补充一下底板材质的区别", LikeCount = 4, Status = "active" },
+            new() { PostId = posts[12].Id, UserId = users[3].Id, Content = "色号指南太及时了,刚入坑正需要!", LikeCount = 9, Status = "active" },
+
+            // 求图帖评论
+            new() { PostId = posts[14].Id, UserId = users[3].Id, Content = "我也想要!同求!", LikeCount = 2, Status = "active" },
+            new() { PostId = posts[15].Id, UserId = users[0].Id, Content = "推荐用AI生成一个,效果不错", LikeCount = 5, Status = "active" },
+            new() { PostId = posts[17].Id, UserId = users[2].Id, Content = "情侣款好主意!做好了记得分享", LikeCount = 3, Status = "active" },
+
+            // 讨论帖评论
+            new() { PostId = posts[18].Id, UserId = users[3].Id, Content = "我一直在淘宝买,选对店铺质量还是不错的", LikeCount = 7, Status = "active" },
+            new() { PostId = posts[18].Id, UserId = users[4].Id, Content = "推荐MARD官方店,色号最全", LikeCount = 10, Status = "active" },
+            new() { PostId = posts[19].Id, UserId = users[0].Id, Content = "哈哈当然是拼豆!拼拼豆太绕口了", LikeCount = 15, Status = "active" },
+            new() { PostId = posts[19].Id, UserId = users[2].Id, Content = "我们这边叫拼拼豆诶...", LikeCount = 8, Status = "active" },
+            new() { PostId = posts[20].Id, UserId = users[1].Id, Content = "29x29确实不够,建议直接上37x37", LikeCount = 6, Status = "active" },
+            new() { PostId = posts[21].Id, UserId = users[0].Id, Content = "当然是艺术!每一颗豆都是创作者的心血", LikeCount = 18, Status = "active" },
+            new() { PostId = posts[23].Id, UserId = users[3].Id, Content = "会褪色的!一定要避免阳光直射,我之前晒褪色了哭死", LikeCount = 5, Status = "active" },
+            new() { PostId = posts[24].Id, UserId = users[0].Id, Content = "拼豆自带的AI生成功能就很好用啊", LikeCount = 7, Status = "active" }
         };
         await _commentRepo.InsertRangeAsync(comments);
     }

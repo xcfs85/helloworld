@@ -8,6 +8,7 @@ using Pindou.Infrastructure.Cache;
 using Pindou.Infrastructure.Repositories;
 using SqlSugar;
 using ICacheService = Pindou.Infrastructure.Cache.ICacheService;
+using UserEntity = Pindou.Domain.Entities.User.User;
 
 namespace Pindou.Infrastructure.Services.System;
 
@@ -168,6 +169,7 @@ public class ContentReviewService : IContentReviewService
     private readonly IRepository<Report> _reportRepo;
     private readonly IRepository<PostReviewLog> _reviewLogRepo;
     private readonly IRepository<Post> _postRepo;
+    private readonly IRepository<UserEntity> _userRepo;
     private readonly ICacheService _cache;
 
     public ContentReviewService(
@@ -175,12 +177,14 @@ public class ContentReviewService : IContentReviewService
         IRepository<Report> reportRepo,
         IRepository<PostReviewLog> reviewLogRepo,
         IRepository<Post> postRepo,
+        IRepository<UserEntity> userRepo,
         ICacheService cache)
     {
         _sensitiveRepo = sensitiveRepo;
         _reportRepo = reportRepo;
         _reviewLogRepo = reviewLogRepo;
         _postRepo = postRepo;
+        _userRepo = userRepo;
         _cache = cache;
     }
 
@@ -224,46 +228,99 @@ public class ContentReviewService : IContentReviewService
         return true;
     }
 
-    public async Task<PagedResult<Pindou.Application.DTOs.Community.PostDto>> GetPendingPostsAsync(PageRequest request)
+    public async Task<PagedResult<Pindou.Application.DTOs.Community.AdminPostDto>> GetAdminPostsAsync(Pindou.Application.DTOs.Community.PostAdminQuery query)
     {
+        var exp = Expressionable.Create<Post>().And(p => p.Status == "active");
+
+        // 按审核状态筛选
+        if (!string.IsNullOrWhiteSpace(query.ReviewStatus))
+            exp.And(p => p.ReviewStatus == query.ReviewStatus);
+
+        // 按内容类型筛选
+        if (!string.IsNullOrWhiteSpace(query.Type))
+            exp.And(p => p.Type == query.Type);
+
+        // 按AI风险等级筛选
+        if (!string.IsNullOrWhiteSpace(query.RiskLevel))
+            exp.And(p => p.RiskLevel == query.RiskLevel);
+
+        // 关键词搜索（标题或内容）
+        if (!string.IsNullOrWhiteSpace(query.Keyword))
+            exp.And(p => p.Title.Contains(query.Keyword) || p.Content.Contains(query.Keyword));
+
+        // 时间范围筛选
+        if (query.StartTime.HasValue)
+            exp.And(p => p.PublishTime >= query.StartTime.Value);
+        if (query.EndTime.HasValue)
+            exp.And(p => p.PublishTime <= query.EndTime.Value);
+
         var (list, total) = await _postRepo.GetPagedAsync(
-            p => p.Status == "active" && p.ReviewStatus == "pending",
-            request.Page,
-            request.Size,
+            exp.ToExpression(),
+            query.Page,
+            query.Size,
             p => p.PublishTime,
             true);
 
-        var result = new PagedResult<Pindou.Application.DTOs.Community.PostDto>
+        var result = new PagedResult<Pindou.Application.DTOs.Community.AdminPostDto>
         {
-            Page = request.Page,
-            Size = request.Size,
+            Page = query.Page,
+            Size = query.Size,
             Total = total,
-            List = new List<Pindou.Application.DTOs.Community.PostDto>()
+            List = new List<Pindou.Application.DTOs.Community.AdminPostDto>()
         };
 
         foreach (var post in list)
         {
-            result.List.Add(new Pindou.Application.DTOs.Community.PostDto
+            // 填充作者信息
+            var author = await _userRepo.GetByIdAsync(post.UserId);
+
+            // 反序列化媒体
+            var media = DeserializeMedia(post.Media);
+
+            // 反序列化风险标签
+            var riskTags = new List<string>();
+            if (!string.IsNullOrWhiteSpace(post.RiskTags))
+            {
+                try { riskTags = JsonSerializer.Deserialize<List<string>>(post.RiskTags) ?? new(); }
+                catch { /* 忽略反序列化异常 */ }
+            }
+
+            result.List.Add(new Pindou.Application.DTOs.Community.AdminPostDto
             {
                 Id = post.Id,
                 Type = post.Type,
                 Title = post.Title,
                 Content = post.Content,
-                Media = new List<Pindou.Application.DTOs.Community.MediaItem>(),
+                Media = media,
                 DiagramId = post.DiagramId,
                 LikeCount = post.LikeCount,
                 CommentCount = post.CommentCount,
                 FavoriteCount = post.FavoriteCount,
                 ViewCount = post.ViewCount,
+                Status = post.Status,
                 ReviewStatus = post.ReviewStatus,
+                ReviewReason = post.ReviewReason,
+                RiskLevel = post.RiskLevel,
+                RiskTags = riskTags,
                 PublishTime = post.PublishTime,
-                Author = new Pindou.Application.DTOs.Community.AuthorBrief(),
-                IsLiked = false,
-                IsFavorited = false
+                CreateTime = post.CreateTime,
+                Author = new Pindou.Application.DTOs.Community.AuthorBrief
+                {
+                    Id = author?.Id ?? string.Empty,
+                    Nickname = author?.Nickname ?? string.Empty,
+                    Avatar = author?.Avatar,
+                    IsMember = author?.IsMember ?? false
+                }
             });
         }
 
         return result;
+    }
+
+    private static List<Pindou.Application.DTOs.Community.MediaItem> DeserializeMedia(string media)
+    {
+        try { return JsonSerializer.Deserialize<List<Pindou.Application.DTOs.Community.MediaItem>>(media) ?? new(); }
+        catch { return new(); }
     }
 
     public async Task<bool> HandleReportAsync(string reportId, string handlerId, string action, string? result = null)

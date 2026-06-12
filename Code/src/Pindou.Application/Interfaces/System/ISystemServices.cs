@@ -19,7 +19,7 @@ public interface IContentReviewService
 {
     Task<(bool Passed, string Reason, string? ReplacedContent)> CheckAsync(string content);
     Task<bool> ReviewPostAsync(string postId, string reviewerId, bool approved, string? reason = null);
-    Task<PagedResult<DTOs.Community.PostDto>> GetPendingPostsAsync(PageRequest request);
+    Task<PagedResult<DTOs.Community.AdminPostDto>> GetAdminPostsAsync(DTOs.Community.PostAdminQuery query);
     Task<bool> HandleReportAsync(string reportId, string handlerId, string action, string? result = null);
     Task<PagedResult<ReportDto>> GetReportsAsync(ReportQuery query);
     Task<List<SensitiveWordDto>> GetSensitiveWordsAsync(string? type = null);

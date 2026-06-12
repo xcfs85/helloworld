@@ -22,12 +22,12 @@ public class ContentController : ControllerBase
         _postService = postService;
     }
 
-    /// <summary>待审核帖子列表</summary>
+    /// <summary>帖子审核列表（支持多条件筛选）</summary>
     [HttpGet("posts/pending")]
-    public async Task<ApiResponse<PagedResult<PostDto>>> PendingPosts([FromQuery] PageRequest request)
+    public async Task<ApiResponse<PagedResult<AdminPostDto>>> PendingPosts([FromQuery] PostAdminQuery query)
     {
-        var data = await _reviewService.GetPendingPostsAsync(request);
-        return ApiResponse<PagedResult<PostDto>>.Ok(data);
+        var data = await _reviewService.GetAdminPostsAsync(query);
+        return ApiResponse<PagedResult<AdminPostDto>>.Ok(data);
     }
 
     /// <summary>帖子详情</summary>

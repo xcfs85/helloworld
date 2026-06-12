@@ -62,6 +62,55 @@ public class AuthorBrief
     public bool IsMember { get; set; }
 }
 
+/// <summary>
+/// Admin帖子审核查询参数
+/// </summary>
+public class PostAdminQuery : PageRequest
+{
+    /// <summary>审核状态:pending/approved/rejected</summary>
+    public string? ReviewStatus { get; set; }
+
+    /// <summary>内容类型:work/request/tutorial/discussion</summary>
+    public string? Type { get; set; }
+
+    /// <summary>AI风险等级:none/low/mid/high</summary>
+    public string? RiskLevel { get; set; }
+
+    /// <summary>关键词(标题/内容模糊搜索)</summary>
+    public string? Keyword { get; set; }
+
+    /// <summary>开始时间</summary>
+    public DateTime? StartTime { get; set; }
+
+    /// <summary>结束时间</summary>
+    public DateTime? EndTime { get; set; }
+}
+
+/// <summary>
+/// Admin帖子审核列表项DTO
+/// </summary>
+public class AdminPostDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public List<MediaItem> Media { get; set; } = new();
+    public string? DiagramId { get; set; }
+    public int LikeCount { get; set; }
+    public int CommentCount { get; set; }
+    public int FavoriteCount { get; set; }
+    public int ViewCount { get; set; }
+    public string Status { get; set; } = "active";
+    public string ReviewStatus { get; set; } = "pending";
+    public string? ReviewReason { get; set; }
+    public string RiskLevel { get; set; } = "none";
+    public List<string> RiskTags { get; set; } = new();
+    public DateTime PublishTime { get; set; }
+    public DateTime CreateTime { get; set; }
+    public AuthorBrief Author { get; set; } = new();
+}
+
 public class CreateCommentRequest
 {
     public string PostId { get; set; } = string.Empty;

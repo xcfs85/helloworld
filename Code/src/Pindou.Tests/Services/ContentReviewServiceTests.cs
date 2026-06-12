@@ -8,6 +8,7 @@ using Pindou.Infrastructure.Cache;
 using Pindou.Infrastructure.Repositories;
 using Pindou.Infrastructure.Services.System;
 using System.Linq.Expressions;
+using UserEntity = Pindou.Domain.Entities.User.User;
 
 namespace Pindou.Tests.Services;
 
@@ -17,6 +18,7 @@ public class ContentReviewServiceTests
     private readonly Mock<IRepository<Report>> _reportRepoMock;
     private readonly Mock<IRepository<PostReviewLog>> _reviewLogRepoMock;
     private readonly Mock<IRepository<Post>> _postRepoMock;
+    private readonly Mock<IRepository<UserEntity>> _userRepoMock;
     private readonly Mock<ICacheService> _cacheMock;
     private readonly ContentReviewService _contentReviewService;
 
@@ -26,10 +28,11 @@ public class ContentReviewServiceTests
         _reportRepoMock = new Mock<IRepository<Report>>();
         _reviewLogRepoMock = new Mock<IRepository<PostReviewLog>>();
         _postRepoMock = new Mock<IRepository<Post>>();
+        _userRepoMock = new Mock<IRepository<UserEntity>>();
         _cacheMock = new Mock<ICacheService>();
         _contentReviewService = new ContentReviewService(
             _sensitiveRepoMock.Object, _reportRepoMock.Object, _reviewLogRepoMock.Object,
-            _postRepoMock.Object, _cacheMock.Object);
+            _postRepoMock.Object, _userRepoMock.Object, _cacheMock.Object);
     }
 
     #region CheckAsync Tests
@@ -136,14 +139,14 @@ public class ContentReviewServiceTests
 
     #endregion
 
-    #region GetPendingPostsAsync Tests
+    #region GetAdminPostsAsync Tests
 
     [Fact]
-    public async Task GetPendingPostsAsync_ShouldReturnPendingPosts()
+    public async Task GetAdminPostsAsync_ShouldReturnPendingPosts()
     {
         var posts = new List<Post>
         {
-            new Post { Id = "p1", UserId = "u1", Type = "work", Title = "待审核", Content = "内容", Status = "active", ReviewStatus = "pending", PublishTime = DateTime.Now }
+            new Post { Id = "p1", UserId = "u1", Type = "work", Title = "待审核", Content = "内容", Status = "active", ReviewStatus = "pending", RiskLevel = "none", PublishTime = DateTime.Now }
         };
         _postRepoMock.Setup(r => r.GetPagedAsync(
                 It.IsAny<Expression<Func<Post, bool>>>(),
@@ -151,8 +154,9 @@ public class ContentReviewServiceTests
                 It.IsAny<Expression<Func<Post, object>>>(),
                 It.IsAny<bool>()))
             .ReturnsAsync((posts, 1));
+        _userRepoMock.Setup(r => r.GetByIdAsync("u1")).ReturnsAsync((UserEntity?)null);
 
-        var result = await _contentReviewService.GetPendingPostsAsync(new PageRequest { Page = 1, Size = 10 });
+        var result = await _contentReviewService.GetAdminPostsAsync(new PostAdminQuery { ReviewStatus = "pending", Page = 1, Size = 10 });
 
         Assert.NotNull(result);
         Assert.Equal(1, result.Total);
