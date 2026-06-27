@@ -10,15 +10,18 @@ const loading = ref(false)
 // 当前展示用的扁平 key-value 表
 const config = reactive<Record<string, any>>({})
 const aiConfig = reactive<Record<string, any>>({})
+const pushConfig = reactive<Record<string, any>>({})
 const kits = ref<any[]>([])
 
 // 用于 diff：保存原始值，提交时只提交变化项
 const originalConfig = ref<Record<string, string>>({})
 const originalAiConfig = ref<Record<string, string>>({})
+const originalPushConfig = ref<Record<string, string>>({})
 
 const tabs = [
   { label: '通用配置', value: 'general', icon: 'Setting' },
   { label: 'AI 配置', value: 'ai', icon: 'Cpu' },
+  { label: '推送配置', value: 'push', icon: 'Promotion' },
   { label: '色板配置', value: 'color', icon: 'BrushFilled' },
   { label: '套装配置', value: 'kit', icon: 'Box' },
   { label: '客服配置', value: 'cs', icon: 'Headset' },
@@ -73,6 +76,13 @@ async function loadAll() {
     }
     originalAiConfig.value = snapshot(aiConfig)
 
+    // 推送配置 key
+    const pushKeys = ['push_jpush_appkey', 'push_jpush_master_secret', 'push_sms_provider', 'push_sms_access_key', 'push_sms_access_secret', 'push_sms_sign_name', 'push_sms_template_code', 'push_email_smtp_host', 'push_email_smtp_port', 'push_email_username', 'push_email_password', 'push_email_from', 'push_email_ssl']
+    for (const k of pushKeys) {
+      pushConfig[k] = map[k] ?? defaultPush[k]
+    }
+    originalPushConfig.value = snapshot(pushConfig)
+
     kits.value = (await listKits()) || []
   } catch (e) {
     console.error('加载系统配置失败', e)
@@ -99,6 +109,22 @@ const defaultAi: Record<string, any> = {
   retry_count: 2,
   fallback_enabled: true,
   queue_threshold: 50
+}
+
+const defaultPush: Record<string, any> = {
+  push_jpush_appkey: '',
+  push_jpush_master_secret: '',
+  push_sms_provider: 'aliyun',
+  push_sms_access_key: '',
+  push_sms_access_secret: '',
+  push_sms_sign_name: '',
+  push_sms_template_code: '',
+  push_email_smtp_host: '',
+  push_email_smtp_port: '465',
+  push_email_username: '',
+  push_email_password: '',
+  push_email_from: '',
+  push_email_ssl: true
 }
 
 function buildPayload(current: Record<string, any>, original: Record<string, string>, typeOf: Record<string, 'boolean' | 'number' | 'string'>): SetConfigPayload[] {
@@ -133,10 +159,26 @@ async function onSave() {
     fallback_enabled: 'boolean',
     queue_threshold: 'number'
   }
+  const pushTypes: Record<string, 'boolean' | 'number' | 'string'> = {
+    push_jpush_appkey: 'string',
+    push_jpush_master_secret: 'string',
+    push_sms_provider: 'string',
+    push_sms_access_key: 'string',
+    push_sms_access_secret: 'string',
+    push_sms_sign_name: 'string',
+    push_sms_template_code: 'string',
+    push_email_smtp_host: 'string',
+    push_email_smtp_port: 'number',
+    push_email_username: 'string',
+    push_email_password: 'string',
+    push_email_from: 'string',
+    push_email_ssl: 'boolean'
+  }
 
   const generalPayload = buildPayload(config, originalConfig.value, generalTypes)
   const aiPayload = buildPayload(aiConfig, originalAiConfig.value, aiTypes)
-  const payload = [...generalPayload, ...aiPayload]
+  const pushPayload = buildPayload(pushConfig, originalPushConfig.value, pushTypes)
+  const payload = [...generalPayload, ...aiPayload, ...pushPayload]
 
   if (payload.length === 0) {
     ElMessage.info('没有需要保存的修改')
@@ -262,6 +304,51 @@ onMounted(loadAll)
                 </div>
               </div>
               <div class="form-row"><div class="lbl">队列阈值</div><div class="input-line"><input type="number" v-model.number="aiConfig.queue_threshold" /></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="activeTab === 'push'">
+          <div class="panel">
+            <div class="panel-head"><div class="ph-title">App 推送（极光）</div></div>
+            <div class="panel-body">
+              <div class="form-row"><div class="lbl">AppKey</div><div class="input-line"><input v-model="pushConfig.push_jpush_appkey" placeholder="极光推送 AppKey" /></div></div>
+              <div class="form-row"><div class="lbl">MasterSecret</div><div class="input-line"><input v-model="pushConfig.push_jpush_master_secret" type="password" placeholder="极光推送 MasterSecret" /></div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div class="ph-title">短信推送</div></div>
+            <div class="panel-body">
+              <div class="form-row">
+                <div class="lbl">服务商</div>
+                <div class="f-select" style="width: 100%">
+                  <select v-model="pushConfig.push_sms_provider">
+                    <option value="aliyun">阿里云</option>
+                    <option value="tencent">腾讯云</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row"><div class="lbl">AccessKey</div><div class="input-line"><input v-model="pushConfig.push_sms_access_key" placeholder="短信服务 AccessKey" /></div></div>
+              <div class="form-row"><div class="lbl">AccessSecret</div><div class="input-line"><input v-model="pushConfig.push_sms_access_secret" type="password" placeholder="短信服务 AccessSecret" /></div></div>
+              <div class="form-row"><div class="lbl">签名</div><div class="input-line"><input v-model="pushConfig.push_sms_sign_name" placeholder="短信签名" /></div></div>
+              <div class="form-row"><div class="lbl">模板编号</div><div class="input-line"><input v-model="pushConfig.push_sms_template_code" placeholder="短信模板编号" /></div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div class="ph-title">邮件推送</div></div>
+            <div class="panel-body">
+              <div class="form-row"><div class="lbl">SMTP 服务器</div><div class="input-line"><input v-model="pushConfig.push_email_smtp_host" placeholder="如 smtp.qq.com" /></div></div>
+              <div class="form-row"><div class="lbl">端口</div><div class="input-line"><input type="number" v-model.number="pushConfig.push_email_smtp_port" placeholder="465" /></div></div>
+              <div class="form-row"><div class="lbl">用户名</div><div class="input-line"><input v-model="pushConfig.push_email_username" placeholder="SMTP 用户名" /></div></div>
+              <div class="form-row"><div class="lbl">密码</div><div class="input-line"><input v-model="pushConfig.push_email_password" type="password" placeholder="SMTP 密码或授权码" /></div></div>
+              <div class="form-row"><div class="lbl">发件人地址</div><div class="input-line"><input v-model="pushConfig.push_email_from" placeholder="发件人邮箱地址" /></div></div>
+              <div class="form-row">
+                <div class="lbl">启用 SSL</div>
+                <div>
+                  <span class="switch" :class="{ on: pushConfig.push_email_ssl }" @click="pushConfig.push_email_ssl = !pushConfig.push_email_ssl"></span>
+                  <span class="muted small">使用 SSL 加密连接</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

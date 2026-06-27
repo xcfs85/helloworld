@@ -35,13 +35,35 @@ export function openTopic(id: string) {
 }
 
 // 专题
-export function listSpecials(query: PageQuery & { status?: string }) {
+/** 专题列表查询参数 */
+export interface SpecialListQuery {
+  page?: number
+  size?: number
+  status?: number
+  keyword?: string
+}
+
+/** 创建/更新专题参数 */
+export interface SpecialFormData {
+  name: string
+  description?: string
+  cover_url: string
+  template_ids: string[]
+  start_time: string
+  end_time: string
+  status?: number
+}
+
+export function listSpecials(query: SpecialListQuery) {
   return service.get<PageResult<Special>>('/special-topic/list', { params: query })
 }
-export function addSpecial(data: Partial<Special>) {
-  return service.post('/special-topic', data)
+export function getSpecial(id: string) {
+  return service.get<Special>(`/special-topic/${id}`)
 }
-export function updateSpecial(id: string, data: Partial<Special>) {
+export function addSpecial(data: SpecialFormData) {
+  return service.post<string>('/special-topic', data)
+}
+export function updateSpecial(id: string, data: SpecialFormData) {
   return service.put(`/special-topic/${id}`, data)
 }
 export function deleteSpecial(id: string) {
@@ -49,18 +71,24 @@ export function deleteSpecial(id: string) {
 }
 
 // 推送
-export function listPushes(query: PageQuery & { status?: string; push_type?: string; target_type?: string }) {
+export function listPushes(query: PageQuery & { status?: string; push_type?: string; target_type?: string; keyword?: string }) {
   return service.get<PageResult<Push>>('/push/list', { params: query })
 }
-export function createPush(data: { title: string; content: string; target_type?: string; target_ids?: string[] }) {
-  return service.post('/push', data)
+export function getPush(id: string) {
+  return service.get<Push>(`/push/${id}`)
 }
-export function sendPush( data: { title: string; content: string; target_type?: string; target_ids?: string[]; schedule_time?: string }) {
-  return service.post('/push/send', data)
+export function createPush(data: { title: string; content: string; push_type?: string; target_type?: string; target_ids?: string[]; channels: string[] }) {
+  return service.post<string>('/push', data)
 }
-export function schedulePush(data: { title: string; content: string; target_type?: string; target_ids?: string[]; schedule_time: string }) {
-  return service.post('/push/schedule', data)
+export function sendPush(data: { title: string; content: string; push_type?: string; target_type?: string; target_ids?: string[]; channels: string[] }) {
+  return service.post<string>('/push/send', data)
+}
+export function schedulePush(data: { title: string; content: string; push_type?: string; target_type?: string; target_ids?: string[]; channels: string[]; schedule_time: string }) {
+  return service.post<string>('/push/schedule', data)
 }
 export function cancelPush(id: string) {
   return service.post(`/push/${id}/cancel`)
+}
+export function retryPush(id: string) {
+  return service.post(`/push/${id}/retry`)
 }

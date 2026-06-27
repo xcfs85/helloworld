@@ -6,6 +6,7 @@ using Pindou.Application.Interfaces.Community;
 using Pindou.Application.Interfaces.Creation;
 using Pindou.Application.Interfaces.Member;
 using Pindou.Application.Interfaces.Messaging;
+using Pindou.Application.Interfaces.Operation;
 using Pindou.Application.Interfaces.Statistics;
 using Pindou.Application.Interfaces.System;
 using Pindou.Application.Interfaces.Template;
@@ -14,6 +15,7 @@ using Pindou.Infrastructure.Cache;
 using Pindou.Infrastructure.Data;
 using Pindou.Infrastructure.Data.SeedData;
 using Pindou.Infrastructure.ExternalServices.AI;
+using Pindou.Infrastructure.ExternalServices.Push;
 using Pindou.Infrastructure.ExternalServices.Sms;
 using Pindou.Infrastructure.ExternalServices.Storage;
 using Pindou.Infrastructure.Options;
@@ -24,6 +26,7 @@ using Pindou.Infrastructure.Services.Community;
 using Pindou.Infrastructure.Services.Creation;
 using Pindou.Infrastructure.Services.Member;
 using Pindou.Infrastructure.Services.Messaging;
+using Pindou.Infrastructure.Services.Operation;
 using Pindou.Infrastructure.Services.Statistics;
 using Pindou.Infrastructure.Services.System;
 using Pindou.Infrastructure.Services.Template;
@@ -81,6 +84,11 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddHttpClient<ISmsService, AliyunSmsService>();
         services.AddSingleton<IStorageService, LocalStorageService>();
 
+        // 推送渠道提供者
+        services.AddHttpClient<IPushChannelProvider, JPushProvider>();
+        services.AddScoped<IPushChannelProvider, SmsPushProvider>();
+        services.AddScoped<IPushChannelProvider, EmailPushProvider>();
+
         // 业务服务
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();
@@ -93,6 +101,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IUserMemberService, UserMemberService>();
         services.AddScoped<IMessageService, MessageService>();
         services.AddScoped<IOperationService, OperationService>();
+        services.AddScoped<IPushService, PushService>();
         services.AddScoped<IStatisticsService, StatisticsService>();
         services.AddScoped<ISystemConfigService, SystemConfigService>();
         services.AddScoped<IContentReviewService, ContentReviewService>();

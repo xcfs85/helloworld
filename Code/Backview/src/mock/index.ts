@@ -110,9 +110,9 @@ export const mockSpecials: Special[] = [
 
 /* ===== 推送 ===== */
 export const mockPushes: Push[] = [
-  { id: 'ps_001', title: '圣诞活动开始啦', content: '参与活动赢取会员', audience: 'all', audience_label: '全量用户', channels: ['app', 'sms'], scheduled_time: '2026-12-01 10:00', send_time: '2026-12-01 10:00:05', status: 'sent', success_count: 125678, fail_count: 234, click_count: 12345, creator: '林运营' },
-  { id: 'ps_002', title: '会员到期提醒', content: '您的会员即将到期', audience: 'tag', audience_label: '7天内到期', channels: ['app'], scheduled_time: '2026-06-10 09:00', status: 'scheduled', success_count: 0, fail_count: 0, click_count: 0, creator: '张管理员' },
-  { id: 'ps_003', title: '系统升级通知', content: '系统将于今晚 02:00 升级', audience: 'all', audience_label: '全量用户', channels: ['app', 'email'], scheduled_time: '2026-06-08 02:00', status: 'draft', success_count: 0, fail_count: 0, click_count: 0, creator: '系统' }
+  { id: 'ps_001', push_id: 'ps_001', title: '圣诞活动开始啦', content: '参与活动赢取会员', push_type: 'activity', target_type: 'all', channels: ['app', 'sms'], scheduled_time: '2026-12-01 10:00', send_time: '2026-12-01 10:00:05', status: 'sent', total_count: 125912, success_count: 125678, fail_count: 234, click_count: 12345, create_time: '2026-12-01 09:00' },
+  { id: 'ps_002', push_id: 'ps_002', title: '会员到期提醒', content: '您的会员即将到期', push_type: 'system', target_type: 'tag', channels: ['app'], scheduled_time: '2026-06-10 09:00', status: 'pending', total_count: 0, success_count: 0, fail_count: 0, click_count: 0, create_time: '2026-06-08 15:00' },
+  { id: 'ps_003', push_id: 'ps_003', title: '系统升级通知', content: '系统将于今晚 02:00 升级', push_type: 'system', target_type: 'all', channels: ['app', 'email'], scheduled_time: '2026-06-08 02:00', status: 'draft', total_count: 0, success_count: 0, fail_count: 0, click_count: 0, create_time: '2026-06-07 10:00' }
 ]
 
 /* ===== 角色 ===== */

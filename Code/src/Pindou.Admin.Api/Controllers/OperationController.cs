@@ -3,6 +3,7 @@ using Pindou.Application.Common;
 using Pindou.Application.DTOs.Community;
 using Pindou.Application.DTOs.Operation;
 using Pindou.Application.Interfaces.Messaging;
+using Pindou.Application.Interfaces.Operation;
 using Pindou.Shared.Attributes;
 
 namespace Pindou.Admin.Api.Controllers;
@@ -21,10 +22,10 @@ public class BannerController : ControllerBase
 
     /// <summary>Banner列表</summary>
     [HttpGet("list")]
-    public async Task<ApiResponse<List<BannerDto>>> List([FromQuery] string? position)
+    public async Task<ApiResponse<PagedResult<BannerAdminDto>>> List([FromQuery] BannerListQuery query)
     {
-        var data = await _operationService.GetActiveBannersAsync(position ?? "home");
-        return ApiResponse<List<BannerDto>>.Ok(data);
+        var data = await _operationService.GetBannersAsync(query);
+        return ApiResponse<PagedResult<BannerAdminDto>>.Ok(data);
     }
 
     /// <summary>创建Banner</summary>
@@ -33,7 +34,8 @@ public class BannerController : ControllerBase
     [OperationLog("创建Banner", SaveParams = true)]
     public async Task<ApiResponse<string>> Create([FromBody] CreateBannerRequest request)
     {
-        return ApiResponse<string>.Ok(string.Empty);
+        var id = await _operationService.CreateBannerAsync(request);
+        return ApiResponse<string>.Ok(id);
     }
 
     /// <summary>更新Banner</summary>
@@ -42,6 +44,7 @@ public class BannerController : ControllerBase
     [OperationLog("更新Banner", SaveParams = true)]
     public async Task<ApiResponse> Update(string id, [FromBody] CreateBannerRequest request)
     {
+        await _operationService.UpdateBannerAsync(id, request);
         return ApiResponse.Ok();
     }
 
@@ -51,6 +54,7 @@ public class BannerController : ControllerBase
     [OperationLog("删除Banner")]
     public async Task<ApiResponse> Delete(string id)
     {
+        await _operationService.DeleteBannerAsync(id);
         return ApiResponse.Ok();
     }
 
@@ -60,6 +64,7 @@ public class BannerController : ControllerBase
     [OperationLog("更新Banner排序")]
     public async Task<ApiResponse> UpdateSort(string id, [FromBody] UpdateSortRequest request)
     {
+        await _operationService.UpdateBannerSortAsync(id, request.Sort);
         return ApiResponse.Ok();
     }
 }
@@ -78,27 +83,37 @@ public class TopicController : ControllerBase
 
     /// <summary>话题列表</summary>
     [HttpGet("list")]
-    public async Task<ApiResponse<List<TopicDto>>> List()
+    public async Task<ApiResponse<PagedResult<TopicAdminDto>>> List([FromQuery] TopicListQuery query)
     {
-        var data = await _operationService.GetOfficialTopicsAsync();
-        return ApiResponse<List<TopicDto>>.Ok(data);
+        var data = await _operationService.GetTopicsAsync(query);
+        return ApiResponse<PagedResult<TopicAdminDto>>.Ok(data);
+    }
+
+    /// <summary>话题详情</summary>
+    [HttpGet("{id}")]
+    public async Task<ApiResponse<TopicAdminDto>> Detail(string id)
+    {
+        var data = await _operationService.GetTopicAsync(id);
+        return ApiResponse<TopicAdminDto>.Ok(data);
     }
 
     /// <summary>创建话题</summary>
     [HttpPost]
     [Permission("topic:add")]
     [OperationLog("创建话题", SaveParams = true)]
-    public async Task<ApiResponse<string>> Create([FromBody] CreateTopicRequest request)
+    public async Task<ApiResponse<string>> Create([FromBody] CreateTopicAdminRequest request)
     {
-        return ApiResponse<string>.Ok(string.Empty);
+        var id = await _operationService.CreateTopicAsync(request);
+        return ApiResponse<string>.Ok(id);
     }
 
     /// <summary>更新话题</summary>
     [HttpPut("{id}")]
     [Permission("topic:edit")]
     [OperationLog("更新话题", SaveParams = true)]
-    public async Task<ApiResponse> Update(string id, [FromBody] CreateTopicRequest request)
+    public async Task<ApiResponse> Update(string id, [FromBody] UpdateTopicAdminRequest request)
     {
+        await _operationService.UpdateTopicAsync(id, request);
         return ApiResponse.Ok();
     }
 
@@ -108,6 +123,7 @@ public class TopicController : ControllerBase
     [OperationLog("关闭话题")]
     public async Task<ApiResponse> Close(string id)
     {
+        await _operationService.CloseTopicAsync(id);
         return ApiResponse.Ok();
     }
 
@@ -117,6 +133,7 @@ public class TopicController : ControllerBase
     [OperationLog("开启话题")]
     public async Task<ApiResponse> Open(string id)
     {
+        await _operationService.OpenTopicAsync(id);
         return ApiResponse.Ok();
     }
 }
@@ -135,10 +152,18 @@ public class SpecialTopicController : ControllerBase
 
     /// <summary>专题列表</summary>
     [HttpGet("list")]
-    public async Task<ApiResponse<PagedResult<SpecialTopicDto>>> List([FromQuery] PageRequest request)
+    public async Task<ApiResponse<PagedResult<SpecialTopicDto>>> List([FromQuery] SpecialTopicListQuery query)
     {
-        var data = await _operationService.GetActiveSpecialTopicsAsync(request);
+        var data = await _operationService.GetSpecialTopicsAsync(query);
         return ApiResponse<PagedResult<SpecialTopicDto>>.Ok(data);
+    }
+
+    /// <summary>专题详情</summary>
+    [HttpGet("{id}")]
+    public async Task<ApiResponse<SpecialTopicDto>> Detail(string id)
+    {
+        var data = await _operationService.GetSpecialTopicAsync(id);
+        return ApiResponse<SpecialTopicDto>.Ok(data);
     }
 
     /// <summary>创建专题</summary>
@@ -147,15 +172,17 @@ public class SpecialTopicController : ControllerBase
     [OperationLog("创建专题", SaveParams = true)]
     public async Task<ApiResponse<string>> Create([FromBody] CreateSpecialTopicRequest request)
     {
-        return ApiResponse<string>.Ok(string.Empty);
+        var id = await _operationService.CreateSpecialTopicAsync(request);
+        return ApiResponse<string>.Ok(id);
     }
 
     /// <summary>更新专题</summary>
     [HttpPut("{id}")]
     [Permission("special-topic:edit")]
     [OperationLog("更新专题", SaveParams = true)]
-    public async Task<ApiResponse> Update(string id, [FromBody] CreateSpecialTopicRequest request)
+    public async Task<ApiResponse> Update(string id, [FromBody] UpdateSpecialTopicRequest request)
     {
+        await _operationService.UpdateSpecialTopicAsync(id, request);
         return ApiResponse.Ok();
     }
 
@@ -165,6 +192,7 @@ public class SpecialTopicController : ControllerBase
     [OperationLog("删除专题")]
     public async Task<ApiResponse> Delete(string id)
     {
+        await _operationService.DeleteSpecialTopicAsync(id);
         return ApiResponse.Ok();
     }
 }
@@ -174,37 +202,57 @@ public class SpecialTopicController : ControllerBase
 [Permission("push:view")]
 public class PushController : ControllerBase
 {
-    private readonly IOperationService _operationService;
+    private readonly IPushService _pushService;
 
-    public PushController(IOperationService operationService)
+    public PushController(IPushService pushService)
     {
-        _operationService = operationService;
+        _pushService = pushService;
     }
 
     /// <summary>推送列表</summary>
     [HttpGet("list")]
-    public async Task<ApiResponse<int>> List()
+    public async Task<ApiResponse<PagedResult<PushRecordDto>>> List([FromQuery] PushListQuery query)
     {
-        var count = await _operationService.GetActivePushCountAsync();
-        return ApiResponse<int>.Ok(count);
+        var data = await _pushService.GetPushListAsync(query);
+        return ApiResponse<PagedResult<PushRecordDto>>.Ok(data);
+    }
+
+    /// <summary>推送详情</summary>
+    [HttpGet("{id}")]
+    public async Task<ApiResponse<PushRecordDto>> Detail(string id)
+    {
+        var data = await _pushService.GetPushAsync(id);
+        return ApiResponse<PushRecordDto>.Ok(data);
+    }
+
+    /// <summary>创建推送(草稿)</summary>
+    [HttpPost]
+    [Permission("push:add")]
+    [OperationLog("创建推送", SaveParams = true)]
+    public async Task<ApiResponse<string>> Create([FromBody] SendPushRequest request)
+    {
+        var id = await _pushService.CreatePushAsync(request);
+        return ApiResponse<string>.Ok(id);
     }
 
     /// <summary>发送推送</summary>
-    [HttpPost]
+    [HttpPost("send")]
     [Permission("push:send")]
     [OperationLog("发送推送", SaveParams = true)]
-    public async Task<ApiResponse> Send([FromBody] SendPushRequest request)
+    public async Task<ApiResponse<string>> Send([FromBody] SendPushRequest request)
     {
-        return ApiResponse.Ok();
+        var id = await _pushService.SendPushAsync(request);
+        return ApiResponse<string>.Ok(id);
     }
 
     /// <summary>定时推送</summary>
     [HttpPost("schedule")]
     [Permission("push:schedule")]
     [OperationLog("定时推送", SaveParams = true)]
-    public async Task<ApiResponse> Schedule([FromBody] SchedulePushRequest request)
+    public async Task<ApiResponse<string>> Schedule([FromBody] SchedulePushRequest request)
     {
-        return ApiResponse.Ok();
+        var id = await _pushService.SchedulePushAsync(request);
+        return ApiResponse<string>.Ok(id);
     }
 
     /// <summary>取消定时推送</summary>
@@ -213,53 +261,22 @@ public class PushController : ControllerBase
     [OperationLog("取消定时推送")]
     public async Task<ApiResponse> Cancel(string id)
     {
+        await _pushService.CancelPushAsync(id);
         return ApiResponse.Ok();
     }
-}
 
-public class CreateBannerRequest
-{
-    public string Title { get; set; } = string.Empty;
-    public string ImageUrl { get; set; } = string.Empty;
-    public string LinkType { get; set; } = "none";
-    public string? LinkValue { get; set; }
-    public string Position { get; set; } = "home";
-    public int Sort { get; set; }
-    public DateTime StartTime { get; set; }
-    public DateTime EndTime { get; set; }
+    /// <summary>重试推送</summary>
+    [HttpPost("{id}/retry")]
+    [Permission("push:send")]
+    [OperationLog("重试推送")]
+    public async Task<ApiResponse> Retry(string id)
+    {
+        await _pushService.RetryPushAsync(id);
+        return ApiResponse.Ok();
+    }
 }
 
 public class UpdateSortRequest
 {
     public int Sort { get; set; }
-}
-
-public class CreateTopicRequest
-{
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string? CoverUrl { get; set; }
-}
-
-public class CreateSpecialTopicRequest
-{
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string CoverUrl { get; set; } = string.Empty;
-    public List<string>? TemplateIds { get; set; }
-    public DateTime StartTime { get; set; }
-    public DateTime EndTime { get; set; }
-}
-
-public class SendPushRequest
-{
-    public string Title { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-    public string? TargetType { get; set; }
-    public List<string>? TargetIds { get; set; }
-}
-
-public class SchedulePushRequest : SendPushRequest
-{
-    public DateTime ScheduleTime { get; set; }
 }

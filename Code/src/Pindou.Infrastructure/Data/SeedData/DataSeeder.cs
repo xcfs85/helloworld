@@ -40,6 +40,7 @@ public class DataSeeder
     private readonly IRepository<BeadKit> _beadKitRepo;
     private readonly IRepository<SensitiveWord> _sensitiveWordRepo;
     private readonly IRepository<OperationLog> _operationLogRepo;
+    private readonly IRepository<Report> _reportRepo;
 
     public DataSeeder(
         IRepository<Role> roleRepo,
@@ -65,7 +66,8 @@ public class DataSeeder
         IRepository<OperationTopic> operationTopicRepo,
         IRepository<BeadKit> beadKitRepo,
         IRepository<SensitiveWord> sensitiveWordRepo,
-        IRepository<OperationLog> operationLogRepo)
+        IRepository<OperationLog> operationLogRepo,
+        IRepository<Report> reportRepo)
     {
         _roleRepo = roleRepo;
         _adminRepo = adminRepo;
@@ -91,6 +93,7 @@ public class DataSeeder
         _beadKitRepo = beadKitRepo;
         _sensitiveWordRepo = sensitiveWordRepo;
         _operationLogRepo = operationLogRepo;
+        _reportRepo = reportRepo;
     }
 
     public async Task SeedAsync()
@@ -119,6 +122,7 @@ public class DataSeeder
         await SeedCommentsAsync();
         await SeedBannersAsync();
         await SeedOperationLogsAsync();
+        await SeedReportsAsync();
     }
 
     #region 基础数据
@@ -210,7 +214,26 @@ public class DataSeeder
             new() { ConfigKey = "generation_timeout", ConfigValue = "60", ConfigType = "number", Description = "生成超时(秒)" },
             new() { ConfigKey = "max_image_size", ConfigValue = "10485760", ConfigType = "number", Description = "最大图片字节数(10MB)" },
             new() { ConfigKey = "comment_enabled", ConfigValue = "true", ConfigType = "boolean" },
-            new() { ConfigKey = "sensitive_filter", ConfigValue = "true", ConfigType = "boolean" }
+            new() { ConfigKey = "sensitive_filter", ConfigValue = "true", ConfigType = "boolean" },
+
+            // 推送配置 - JPush
+            new() { ConfigKey = "push_jpush_appkey", ConfigValue = "", ConfigType = "string", Description = "极光推送AppKey" },
+            new() { ConfigKey = "push_jpush_master_secret", ConfigValue = "", ConfigType = "string", Description = "极光推送MasterSecret" },
+
+            // 推送配置 - 短信
+            new() { ConfigKey = "push_sms_provider", ConfigValue = "aliyun", ConfigType = "string", Description = "短信服务商:aliyun/tencent" },
+            new() { ConfigKey = "push_sms_access_key", ConfigValue = "", ConfigType = "string", Description = "短信AccessKey" },
+            new() { ConfigKey = "push_sms_access_secret", ConfigValue = "", ConfigType = "string", Description = "短信AccessSecret" },
+            new() { ConfigKey = "push_sms_sign_name", ConfigValue = "", ConfigType = "string", Description = "短信签名" },
+            new() { ConfigKey = "push_sms_template_code", ConfigValue = "", ConfigType = "string", Description = "短信模板编号" },
+
+            // 推送配置 - 邮件
+            new() { ConfigKey = "push_email_smtp_host", ConfigValue = "", ConfigType = "string", Description = "SMTP服务器" },
+            new() { ConfigKey = "push_email_smtp_port", ConfigValue = "465", ConfigType = "number", Description = "SMTP端口" },
+            new() { ConfigKey = "push_email_username", ConfigValue = "", ConfigType = "string", Description = "SMTP用户名" },
+            new() { ConfigKey = "push_email_password", ConfigValue = "", ConfigType = "string", Description = "SMTP密码" },
+            new() { ConfigKey = "push_email_from", ConfigValue = "", ConfigType = "string", Description = "发件人地址" },
+            new() { ConfigKey = "push_email_ssl", ConfigValue = "true", ConfigType = "boolean", Description = "启用SSL" }
         };
         await _configRepo.InsertRangeAsync(configs);
     }
@@ -423,8 +446,14 @@ public class DataSeeder
         var now = DateTime.Now;
         var topics = new List<OperationTopic>
         {
-            new() { Id = Guid.NewGuid().ToString(), TopicId = "christmas2024", Name = "🎄 圣诞创作大赛", Description = "上传你的圣诞主题拼豆赢取会员", CoverUrl = "https://picsum.photos/seed/op-christmas/800/400", IsOfficial = 1, Status = "active", PostCount = 0, ParticipantCount = 0 },
-            new() { TopicId = "newyear2025", Name = "🎉 新年祝福拼豆", Description = "用拼豆送上你的新年祝福", CoverUrl = "https://picsum.photos/seed/op-newyear/800/400", IsOfficial = 1, Status = "active", PostCount = 0, ParticipantCount = 0 }
+            new() { Id = Guid.NewGuid().ToString(), TopicId = "christmas2024", Name = "🎄 圣诞创作大赛", Description = "上传你的圣诞主题拼豆赢取会员", CoverUrl = "https://picsum.photos/seed/op-christmas/800/400", IsOfficial = 1, Status = "active", PostCount = 156, ParticipantCount = 89 },
+            new() { Id = Guid.NewGuid().ToString(), TopicId = "newyear2025", Name = "🎉 新年祝福拼豆", Description = "用拼豆送上你的新年祝福", CoverUrl = "https://picsum.photos/seed/op-newyear/800/400", IsOfficial = 1, Status = "active", PostCount = 234, ParticipantCount = 167 },
+            new() { Id = Guid.NewGuid().ToString(), TopicId = "anime2025", Name = "🎭 动漫角色大赏", Description = "你最爱的动漫角色拼豆作品", CoverUrl = "https://picsum.photos/seed/op-anime/800/400", IsOfficial = 1, Status = "active", PostCount = 312, ParticipantCount = 205 },
+            new() { Id = Guid.NewGuid().ToString(), TopicId = "pet2025", Name = "🐾 萌宠拼豆秀", Description = "用拼豆记录你家毛孩子的可爱瞬间", CoverUrl = "https://picsum.photos/seed/op-pet/800/400", IsOfficial = 1, Status = "active", PostCount = 89, ParticipantCount = 56 },
+            new() { Id = Guid.NewGuid().ToString(), TopicId = "pixel2024", Name = "👾 像素游戏回忆", Description = "复古像素风拼豆创作", CoverUrl = "https://picsum.photos/seed/op-pixel/800/400", IsOfficial = 1, Status = "closed", PostCount = 456, ParticipantCount = 278 },
+            new() { Id = Guid.NewGuid().ToString(), TopicId = "food2024", Name = "🍰 美食咖啡时光", Description = "咖啡甜点拼豆创作", CoverUrl = "https://picsum.photos/seed/op-food/800/400", IsOfficial = 0, Status = "active", PostCount = 67, ParticipantCount = 43 },
+            new() { Id = Guid.NewGuid().ToString(), TopicId = "diy2024", Name = "🎨 手工DIY分享", Description = "拼豆手工制作过程与心得", CoverUrl = "https://picsum.photos/seed/op-diy/800/400", IsOfficial = 0, Status = "active", PostCount = 128, ParticipantCount = 95 },
+            new() { Id = Guid.NewGuid().ToString(), TopicId = "spring2024", Name = "🌸 春日花语", Description = "春天的花卉拼豆创作", CoverUrl = "https://picsum.photos/seed/op-spring/800/400", IsOfficial = 0, Status = "closed", PostCount = 201, ParticipantCount = 134 }
         };
         await _operationTopicRepo.InsertRangeAsync(topics);
     }
@@ -882,35 +911,50 @@ public class DataSeeder
         var comments = new List<Comment>
         {
             // 作品帖评论
-            new() { Id = Guid.NewGuid().ToString(), PostId = posts[0].Id, UserId = users[1].Id, Content = "好可爱!请问用的是什么色号?", LikeCount = 3, Status = "active" },
-            new() { PostId = posts[0].Id, UserId = users[2].Id, Content = "配色很好看,期待更多作品~", LikeCount = 5, Status = "active" },
-            new() { PostId = posts[1].Id, UserId = users[0].Id, Content = "柴犬同款,哈哈好可爱", LikeCount = 2, Status = "active" },
-            new() { PostId = posts[3].Id, UserId = users[1].Id, Content = "配色绝了,请问配色比例怎么选?", LikeCount = 4, Status = "active" },
-            new() { PostId = posts[4].Id, UserId = users[0].Id, Content = "雏田太美了!色号能分享一下吗?", LikeCount = 12, Status = "active" },
-            new() { PostId = posts[4].Id, UserId = users[3].Id, Content = "二次元拼豆永远的神!", LikeCount = 8, Status = "active" },
-            new() { PostId = posts[7].Id, UserId = users[2].Id, Content = "马里奥经典!童年回忆杀", LikeCount = 6, Status = "active" },
-            new() { PostId = posts[8].Id, UserId = users[0].Id, Content = "国风太美了,仙鹤的渐变做得真好", LikeCount = 3, Status = "active" },
+            new() { Id = Guid.NewGuid().ToString(), PostId = posts[0].Id, UserId = users[1].Id, Content = "好可爱!请问用的是什么色号?", LikeCount = 3, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[0].Id, UserId = users[2].Id, Content = "配色很好看,期待更多作品~", LikeCount = 5, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[1].Id, UserId = users[0].Id, Content = "柴犬同款,哈哈好可爱", LikeCount = 2, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[3].Id, UserId = users[1].Id, Content = "配色绝了,请问配色比例怎么选?", LikeCount = 4, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[4].Id, UserId = users[0].Id, Content = "雏田太美了!色号能分享一下吗?", LikeCount = 12, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[4].Id, UserId = users[3].Id, Content = "二次元拼豆永远的神!", LikeCount = 8, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[7].Id, UserId = users[2].Id, Content = "马里奥经典!童年回忆杀", LikeCount = 6, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[8].Id, UserId = users[0].Id, Content = "国风太美了,仙鹤的渐变做得真好", LikeCount = 3, ReviewStatus = "approved", Status = "active" },
 
             // 教程帖评论
-            new() { PostId = posts[9].Id, UserId = users[0].Id, Content = "教程很实用,收藏了!", LikeCount = 8, Status = "active" },
-            new() { PostId = posts[10].Id, UserId = users[4].Id, Content = "新手福音!终于知道怎么选底板了", LikeCount = 15, Status = "active" },
-            new() { PostId = posts[10].Id, UserId = users[2].Id, Content = "建议补充一下底板材质的区别", LikeCount = 4, Status = "active" },
-            new() { PostId = posts[12].Id, UserId = users[3].Id, Content = "色号指南太及时了,刚入坑正需要!", LikeCount = 9, Status = "active" },
+            new() { PostId = posts[9].Id, UserId = users[0].Id, Content = "教程很实用,收藏了!", LikeCount = 8, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[10].Id, UserId = users[4].Id, Content = "新手福音!终于知道怎么选底板了", LikeCount = 15, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[10].Id, UserId = users[2].Id, Content = "建议补充一下底板材质的区别", LikeCount = 4, ReviewStatus = "pending", Status = "active" },
+            new() { PostId = posts[12].Id, UserId = users[3].Id, Content = "色号指南太及时了,刚入坑正需要!", LikeCount = 9, ReviewStatus = "approved", Status = "active" },
 
             // 求图帖评论
-            new() { PostId = posts[14].Id, UserId = users[3].Id, Content = "我也想要!同求!", LikeCount = 2, Status = "active" },
-            new() { PostId = posts[15].Id, UserId = users[0].Id, Content = "推荐用AI生成一个,效果不错", LikeCount = 5, Status = "active" },
-            new() { PostId = posts[17].Id, UserId = users[2].Id, Content = "情侣款好主意!做好了记得分享", LikeCount = 3, Status = "active" },
+            new() { PostId = posts[14].Id, UserId = users[3].Id, Content = "我也想要!同求!", LikeCount = 2, ReviewStatus = "pending", Status = "active" },
+            new() { PostId = posts[15].Id, UserId = users[0].Id, Content = "推荐用AI生成一个,效果不错", LikeCount = 5, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[17].Id, UserId = users[2].Id, Content = "情侣款好主意!做好了记得分享", LikeCount = 3, ReviewStatus = "pending", Status = "active" },
 
             // 讨论帖评论
-            new() { PostId = posts[18].Id, UserId = users[3].Id, Content = "我一直在淘宝买,选对店铺质量还是不错的", LikeCount = 7, Status = "active" },
-            new() { PostId = posts[18].Id, UserId = users[4].Id, Content = "推荐MARD官方店,色号最全", LikeCount = 10, Status = "active" },
-            new() { PostId = posts[19].Id, UserId = users[0].Id, Content = "哈哈当然是拼豆!拼拼豆太绕口了", LikeCount = 15, Status = "active" },
-            new() { PostId = posts[19].Id, UserId = users[2].Id, Content = "我们这边叫拼拼豆诶...", LikeCount = 8, Status = "active" },
-            new() { PostId = posts[20].Id, UserId = users[1].Id, Content = "29x29确实不够,建议直接上37x37", LikeCount = 6, Status = "active" },
-            new() { PostId = posts[21].Id, UserId = users[0].Id, Content = "当然是艺术!每一颗豆都是创作者的心血", LikeCount = 18, Status = "active" },
-            new() { PostId = posts[23].Id, UserId = users[3].Id, Content = "会褪色的!一定要避免阳光直射,我之前晒褪色了哭死", LikeCount = 5, Status = "active" },
-            new() { PostId = posts[24].Id, UserId = users[0].Id, Content = "拼豆自带的AI生成功能就很好用啊", LikeCount = 7, Status = "active" }
+            new() { PostId = posts[18].Id, UserId = users[3].Id, Content = "我一直在淘宝买,选对店铺质量还是不错的", LikeCount = 7, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[18].Id, UserId = users[4].Id, Content = "推荐MARD官方店,色号最全", LikeCount = 10, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[19].Id, UserId = users[0].Id, Content = "哈哈当然是拼豆!拼拼豆太绕口了", LikeCount = 15, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[19].Id, UserId = users[2].Id, Content = "我们这边叫拼拼豆诶...", LikeCount = 8, ReviewStatus = "pending", Status = "active" },
+            new() { PostId = posts[20].Id, UserId = users[1].Id, Content = "29x29确实不够,建议直接上37x37", LikeCount = 6, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[21].Id, UserId = users[0].Id, Content = "当然是艺术!每一颗豆都是创作者的心血", LikeCount = 18, ReviewStatus = "approved", Status = "active" },
+            new() { PostId = posts[23].Id, UserId = users[3].Id, Content = "会褪色的!一定要避免阳光直射,我之前晒褪色了哭死", LikeCount = 5, ReviewStatus = "pending", Status = "active" },
+            new() { PostId = posts[24].Id, UserId = users[0].Id, Content = "拼豆自带的AI生成功能就很好用啊", LikeCount = 7, ReviewStatus = "approved", Status = "active" },
+
+            // 待审核评论（模拟用户刚发布的评论）
+            new() { PostId = posts[0].Id, UserId = users[4].Id, Content = "请问这个难度大吗?新手能做吗", LikeCount = 0, ReviewStatus = "pending", Status = "active" },
+            new() { PostId = posts[5].Id, UserId = users[1].Id, Content = "哇!超美的星空拼豆!", LikeCount = 0, ReviewStatus = "pending", Status = "active" },
+            new() { PostId = posts[11].Id, UserId = users[4].Id, Content = "学废了,感谢分享!", LikeCount = 0, ReviewStatus = "pending", Status = "active" },
+            new() { PostId = posts[16].Id, UserId = users[2].Id, Content = "这个图案好复杂,有简化版吗?", LikeCount = 0, ReviewStatus = "pending", Status = "active" },
+            new() { PostId = posts[22].Id, UserId = users[0].Id, Content = "参加!期待大家的作品", LikeCount = 0, ReviewStatus = "pending", Status = "active" },
+
+            // 被拒绝的评论（含违规内容）
+            new() { PostId = posts[0].Id, UserId = users[4].Id, Content = "加我微信xxx免费领拼豆", LikeCount = 0, ReviewStatus = "rejected", Status = "active" },
+            new() { PostId = posts[3].Id, UserId = users[2].Id, Content = "广告位招租,联系QQ12345", LikeCount = 0, ReviewStatus = "rejected", Status = "active" },
+
+            // 已隐藏的评论
+            new() { PostId = posts[6].Id, UserId = users[4].Id, Content = "这个不好看,浪费材料", LikeCount = 0, ReviewStatus = "approved", Status = "hidden" },
+            new() { PostId = posts[9].Id, UserId = users[1].Id, Content = "没什么用,别看了", LikeCount = 0, ReviewStatus = "approved", Status = "hidden" },
         };
         await _commentRepo.InsertRangeAsync(comments);
     }
@@ -1118,6 +1162,227 @@ public class DataSeeder
         {
             // 忽略:种子日志非关键数据
         }
+    }
+
+    #endregion
+
+    #region 举报
+
+    private async Task SeedReportsAsync()
+    {
+        if (await _reportRepo.AnyAsync(r => true)) return;
+        var users = await _userRepo.GetListAsync();
+        var posts = await _postRepo.GetListAsync();
+        var admins = await _adminRepo.GetListAsync();
+        if (users.Count < 3 || posts.Count < 5) return;
+
+        var now = DateTime.Now;
+        var reports = new List<Report>
+        {
+            // ===== 待处理 =====
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260619-001",
+                ReporterId = users[1].Id,
+                TargetType = "post",
+                TargetId = posts[3].Id,
+                TargetUserId = users[3].Id,
+                Reason = "spam",
+                Content = "帖子内容疑似广告引流，包含外部联系方式",
+                Status = "pending"
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260619-002",
+                ReporterId = users[2].Id,
+                TargetType = "post",
+                TargetId = posts[5].Id,
+                TargetUserId = users[0].Id,
+                Reason = "violation",
+                Content = "帖子包含违规内容，涉及敏感话题",
+                Status = "pending"
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260619-003",
+                ReporterId = users[0].Id,
+                TargetType = "comment",
+                TargetId = posts[0].Id,
+                TargetUserId = users[4].Id,
+                Reason = "attack",
+                Content = "评论中存在人身攻击和辱骂行为",
+                Status = "pending"
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260619-004",
+                ReporterId = users[3].Id,
+                TargetType = "post",
+                TargetId = posts[7].Id,
+                TargetUserId = users[1].Id,
+                Reason = "fake",
+                Content = "帖子内容为虚假信息，误导其他用户",
+                Status = "pending"
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260619-005",
+                ReporterId = users[4].Id,
+                TargetType = "user",
+                TargetId = users[2].Id,
+                TargetUserId = users[2].Id,
+                Reason = "infringement",
+                Content = "该用户盗用他人作品，侵犯知识产权",
+                Status = "pending"
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260619-006",
+                ReporterId = users[1].Id,
+                TargetType = "post",
+                TargetId = posts[10].Id,
+                TargetUserId = users[0].Id,
+                Reason = "other",
+                Content = "帖子内容与拼豆无关，属于无关内容",
+                Status = "pending"
+            },
+
+            // ===== 已处理 - 警告 =====
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260618-001",
+                ReporterId = users[0].Id,
+                TargetType = "post",
+                TargetId = posts[1].Id,
+                TargetUserId = users[1].Id,
+                Reason = "spam",
+                Content = "帖子中包含推广链接",
+                Status = "warned",
+                HandleResult = "已对发布者发送警告通知，要求删除推广内容",
+                HandlerId = admins.Count > 0 ? admins[0].Id.ToString() : null,
+                HandleTime = now.AddDays(-1).AddHours(3)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260618-002",
+                ReporterId = users[2].Id,
+                TargetType = "comment",
+                TargetId = posts[4].Id,
+                TargetUserId = users[3].Id,
+                Reason = "attack",
+                Content = "评论中使用了不文明用语",
+                Status = "warned",
+                HandleResult = "已警告该用户，评论已标记",
+                HandlerId = admins.Count > 0 ? admins[0].Id.ToString() : null,
+                HandleTime = now.AddDays(-1).AddHours(5)
+            },
+
+            // ===== 已处理 - 封禁内容 =====
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260617-001",
+                ReporterId = users[3].Id,
+                TargetType = "post",
+                TargetId = posts[6].Id,
+                TargetUserId = users[4].Id,
+                Reason = "violation",
+                Content = "帖子包含严重违规内容，涉及赌博信息",
+                Status = "ban_content",
+                HandleResult = "内容已下架，对发布者进行警告处理",
+                HandlerId = admins.Count > 1 ? admins[1].Id.ToString() : null,
+                HandleTime = now.AddDays(-2).AddHours(2)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260617-002",
+                ReporterId = users[0].Id,
+                TargetType = "post",
+                TargetId = posts[8].Id,
+                TargetUserId = users[2].Id,
+                Reason = "spam",
+                Content = "帖子为纯广告内容，无拼豆相关内容",
+                Status = "ban_content",
+                HandleResult = "广告内容已删除",
+                HandlerId = admins.Count > 0 ? admins[0].Id.ToString() : null,
+                HandleTime = now.AddDays(-2).AddHours(8)
+            },
+
+            // ===== 已处理 - 封禁用户 =====
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260616-001",
+                ReporterId = users[1].Id,
+                TargetType = "user",
+                TargetId = users[4].Id,
+                TargetUserId = users[4].Id,
+                Reason = "spam",
+                Content = "该用户多次发布垃圾广告，屡教不改",
+                Status = "ban_user",
+                HandleResult = "用户已被封禁，所有违规内容已清理",
+                HandlerId = admins.Count > 0 ? admins[0].Id.ToString() : null,
+                HandleTime = now.AddDays(-3).AddHours(1)
+            },
+
+            // ===== 已忽略 =====
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260615-001",
+                ReporterId = users[4].Id,
+                TargetType = "post",
+                TargetId = posts[0].Id,
+                TargetUserId = users[0].Id,
+                Reason = "other",
+                Content = "我觉得这个帖子不好看",
+                Status = "ignored",
+                HandleResult = "举报理由不充分，帖子内容未违反社区规范",
+                HandlerId = admins.Count > 1 ? admins[1].Id.ToString() : null,
+                HandleTime = now.AddDays(-4).AddHours(6)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260615-002",
+                ReporterId = users[2].Id,
+                TargetType = "comment",
+                TargetId = posts[2].Id,
+                TargetUserId = users[1].Id,
+                Reason = "attack",
+                Content = "评论语气不太好",
+                Status = "ignored",
+                HandleResult = "评论内容属于正常讨论范畴，未构成人身攻击",
+                HandlerId = admins.Count > 0 ? admins[0].Id.ToString() : null,
+                HandleTime = now.AddDays(-4).AddHours(10)
+            },
+            new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                ReportId = "RPT-20260615-003",
+                ReporterId = users[0].Id,
+                TargetType = "post",
+                TargetId = posts[9].Id,
+                TargetUserId = users[2].Id,
+                Reason = "infringement",
+                Content = "疑似盗图，但无法确认",
+                Status = "ignored",
+                HandleResult = "举报人未能提供有效证据，暂不处理",
+                HandlerId = admins.Count > 1 ? admins[1].Id.ToString() : null,
+                HandleTime = now.AddDays(-5)
+            }
+        };
+
+        await _reportRepo.InsertRangeAsync(reports);
     }
 
     #endregion

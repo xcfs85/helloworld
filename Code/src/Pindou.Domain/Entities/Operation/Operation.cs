@@ -158,6 +158,10 @@ public class PushRecord : UuidEntity
     [SugarColumn(IsNullable = true)]
     public DateTime? SendTime { get; set; }
 
+    /// <summary>推送渠道(JSON数组): ["app","sms","email"]</summary>
+    [SugarColumn(ColumnDataType = "text", IsNullable = true)]
+    public string? Channels { get; set; }
+
     /// <summary>推送总数</summary>
     [SugarColumn(IsNullable = false, DefaultValue = "0")]
     public int TotalCount { get; set; }
@@ -166,11 +170,15 @@ public class PushRecord : UuidEntity
     [SugarColumn(IsNullable = false, DefaultValue = "0")]
     public int SuccessCount { get; set; }
 
+    /// <summary>失败数</summary>
+    [SugarColumn(IsNullable = false, DefaultValue = "0")]
+    public int FailCount { get; set; }
+
     /// <summary>点击数</summary>
     [SugarColumn(IsNullable = false, DefaultValue = "0")]
     public int ClickCount { get; set; }
 
-    /// <summary>状态:pending/sending/sent/failed</summary>
+    /// <summary>状态:draft/pending/sending/sent/failed/canceled</summary>
     [SugarColumn(Length = 20, IsNullable = false, DefaultValue = "'pending'")]
     public string Status { get; set; } = "pending";
 }

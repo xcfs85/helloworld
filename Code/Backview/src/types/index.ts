@@ -202,18 +202,21 @@ export interface Special {
 /* ===== 推送 ===== */
 export interface Push {
   id: string
+  push_id: string
   title: string
   content: string
-  audience: 'all' | 'tag' | 'user'
-  audience_label: string
+  push_type: string
+  target_type: 'all' | 'tag' | 'user'
+  target_param?: string
   channels: string[]
-  scheduled_time: string
+  scheduled_time?: string
   send_time?: string
-  status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed'
+  status: 'draft' | 'pending' | 'sending' | 'sent' | 'failed' | 'canceled'
+  total_count: number
   success_count: number
   fail_count: number
   click_count: number
-  creator: string
+  create_time: string
 }
 
 /* ===== 角色 ===== */
