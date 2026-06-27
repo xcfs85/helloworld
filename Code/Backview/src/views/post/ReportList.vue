@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHead from '@/components/PageHead.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import { listReports, handleReport } from '@/api/post'
 import type { Report } from '@/types'
+
+const router = useRouter()
 
 const loading = ref(false)
 const list = ref<Report[]>([])
@@ -40,6 +43,52 @@ async function onHandle(r: Report, action: string) {
   } catch {}
 }
 
+// 导出举报CSV
+async function doExport() {
+  loading.value = true
+  try {
+    const params: Record<string, any> = { ...filter, status: tab.value, page: 1, page_size: 10000 }
+    const res: any = await listReports(params)
+    const exportList = (res?.list || []) as Report[]
+
+    const typeMap: Record<string, string> = {
+      spam: '垃圾广告', violation: '违规内容', infringement: '侵权',
+      fake: '虚假信息', attack: '人身攻击', other: '其他'
+    }
+    const targetTypeMap: Record<string, string> = { post: '帖子', comment: '评论', user: '用户' }
+    const statusMap: Record<string, string> = {
+      pending: '待处理', warned: '已警告', muted: '已禁言',
+      banned: '已封号', ignored: '已忽略'
+    }
+
+    const headers = ['举报编号', '举报对象类型', '举报对象ID', '被举报内容', '举报人', '举报类型', '举报原因', '处理状态', '举报时间', '处理时间']
+    const rows = exportList.map(r => [
+      r.id,
+      targetTypeMap[r.target_type] || r.target_type,
+      r.target_id,
+      r.target_summary?.replace(/"/g, '""') || '',
+      r.reporter?.nickname || '',
+      typeMap[r.type] || r.type,
+      r.reason?.replace(/"/g, '""') || '',
+      statusMap[r.status] || r.status,
+      r.create_time || '',
+      (r as any).handle_time || ''
+    ])
+
+    const csvContent = '﻿' + [headers, ...rows].map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `举报管理_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success(`已导出 ${exportList.length} 条举报数据`)
+  } catch (e) {
+    ElMessage.error('导出失败')
+  } finally { loading.value = false }
+}
+
 onMounted(load)
 </script>
 
@@ -51,7 +100,7 @@ onMounted(load)
       sub="待处理 12 条 · 高优 2 条"
     >
       <template #actions>
-        <button class="btn btn-secondary">导出</button>
+        <button class="btn btn-secondary" @click="doExport">导出</button>
       </template>
     </PageHead>
 
@@ -106,8 +155,8 @@ onMounted(load)
             </td>
             <td>
               <div class="user-cell">
-                <div class="av sm" :class="'c' + ((parseInt(r.reporter_id.slice(-1)) % 6) + 1)">{{ r.reporter_name[0] }}</div>
-                <div class="meta"><div class="nm" style="font-size: 12px">{{ r.reporter_name }}</div></div>
+                <div class="av sm" :class="'c' + ((parseInt((r.reporter?.id || '0').slice(-1)) % 6) + 1)">{{ r.reporter?.nickname?.[0] || '?' }}</div>
+                <div class="meta"><div class="nm" style="font-size: 12px">{{ r.reporter?.nickname || '未知' }}</div></div>
               </div>
             </td>
             <td class="muted" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ r.reason }}</td>
@@ -120,13 +169,14 @@ onMounted(load)
               <StatusTag v-else variant="neutral">已忽略</StatusTag>
             </td>
             <td class="col-actions">
+              <button v-if="r.target_type === 'post'" class="btn btn-xs btn-ghost" @click="router.push({ name: 'post-review-detail', params: { id: r.target_id } })">预览帖子</button>
               <template v-if="r.status === 'pending'">
                 <button class="btn btn-xs btn-ghost" @click="onHandle(r, 'ignore')">忽略</button>
                 <button class="btn btn-xs btn-ghost" @click="onHandle(r, 'warn')">警告</button>
                 <button class="btn btn-xs btn-ghost" @click="onHandle(r, 'mute')">禁言</button>
                 <button class="btn btn-xs btn-ghost" style="color: var(--rose)" @click="onHandle(r, 'ban')">封号</button>
               </template>
-              <button v-else class="btn btn-xs btn-ghost">查看</button>
+              <button v-else-if="r.target_type !== 'post'" class="btn btn-xs btn-ghost">查看</button>
             </td>
           </tr>
         </tbody>

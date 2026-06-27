@@ -80,32 +80,32 @@ export const mockSensitiveWords: SensitiveWord[] = [
 
 /* ===== 举报 ===== */
 export const mockReports: Report[] = [
-  { id: 'r_001', type: 'spam', target_type: 'post', target_id: 'p_87925', target_summary: '加我微信拼豆交流群（看图）', reporter_id: 'u_10006', reporter_name: '星空物语', reason: '引流广告', create_time: '2026-06-07 09:00', status: 'pending' },
-  { id: 'r_002', type: 'attack', target_type: 'comment', target_id: 'c_45212', target_summary: '...', reporter_id: 'u_10004', reporter_name: '拼图小子', reason: '人身攻击', create_time: '2026-06-07 08:30', status: 'pending' },
-  { id: 'r_003', type: 'infringement', target_type: 'post', target_id: 'p_87924', target_summary: '樱花树 50×50 完工啦！', reporter_id: 'u_10008', reporter_name: '匿名', reason: '盗用我的作品', create_time: '2026-06-07 07:15', status: 'pending' },
-  { id: 'r_004', type: 'violation', target_type: 'user', target_id: 'u_10005', target_summary: '阿狸的店', reporter_id: 'u_10001', reporter_name: '小美', reason: '多次发布广告', create_time: '2026-06-06 22:00', status: 'warned', handler: '李审核', handle_time: '2026-06-06 22:30' }
+  { id: 'r_001', type: 'spam', target_type: 'post', target_id: 'p_87925', target_summary: '加我微信拼豆交流群（看图）', reporter: { id: 'u_10006', nickname: '星空物语' }, reason: '引流广告', create_time: '2026-06-07 09:00', status: 'pending' },
+  { id: 'r_002', type: 'attack', target_type: 'comment', target_id: 'c_45212', target_summary: '...', reporter: { id: 'u_10004', nickname: '拼图小子' }, reason: '人身攻击', create_time: '2026-06-07 08:30', status: 'pending' },
+  { id: 'r_003', type: 'infringement', target_type: 'post', target_id: 'p_87924', target_summary: '樱花树 50×50 完工啦！', reporter: { id: 'u_10008', nickname: '匿名' }, reason: '盗用我的作品', create_time: '2026-06-07 07:15', status: 'pending' },
+  { id: 'r_004', type: 'violation', target_type: 'user', target_id: 'u_10005', target_summary: '阿狸的店', reporter: { id: 'u_10001', nickname: '小美' }, reason: '多次发布广告', create_time: '2026-06-06 22:00', status: 'warned', handler: '李审核', handle_time: '2026-06-06 22:30' }
 ]
 
 /* ===== Banner ===== */
 export const mockBanners: Banner[] = [
-  { id: 'b_001', title: '圣诞活动', image: postCovers[0], link_type: 'template', link_url: '/template/123', position: '首页顶部', start_time: '2026-06-01', end_time: '2026-12-31', sort: 1, status: 'visible', click_count: 12345 },
-  { id: 'b_002', title: '新人福利', image: postCovers[1], link_type: 'web', link_url: '/invite', position: '首页顶部', start_time: '2026-01-01', end_time: '2026-12-31', sort: 2, status: 'visible', click_count: 8921 },
-  { id: 'b_003', title: '会员优惠', image: postCovers[2], link_type: 'activity', link_url: '/vip', position: '首页顶部', start_time: '2026-06-01', end_time: '2026-06-30', sort: 3, status: 'hidden', click_count: 5678 },
-  { id: 'b_004', title: '春节拼豆专场', image: postCovers[3], link_type: 'special', link_url: '/special/1', position: '首页顶部', start_time: '2026-01-20', end_time: '2026-02-20', sort: 4, status: 'hidden', click_count: 0 }
+  { id: 'b_001', title: '圣诞活动', image_url: postCovers[0], link_type: 'template', link_value: '/template/123', position: 'home_top', start_time: '2026-06-01', end_time: '2026-12-31', sort: 1, status: 'active', create_time: '2026-06-01' },
+  { id: 'b_002', title: '新人福利', image_url: postCovers[1], link_type: 'url', link_value: '/invite', position: 'home_top', start_time: '2026-01-01', end_time: '2026-12-31', sort: 2, status: 'active', create_time: '2026-01-01' },
+  { id: 'b_003', title: '会员优惠', image_url: postCovers[2], link_type: 'activity', link_value: '/vip', position: 'home_top', start_time: '2026-06-01', end_time: '2026-06-30', sort: 3, status: 'inactive', create_time: '2026-06-01' },
+  { id: 'b_004', title: '春节拼豆专场', image_url: postCovers[3], link_type: 'special', link_value: '/special/1', position: 'template_top', start_time: '2026-01-20', end_time: '2026-02-20', sort: 4, status: 'inactive', create_time: '2026-01-20' }
 ]
 
 /* ===== 话题 ===== */
 export const mockTopics: Topic[] = [
-  { id: 'tp_001', name: '圣诞拼豆挑战', desc: '圣诞主题拼豆作品分享', post_count: 1234, user_count: 567, is_official: true, status: 'active', create_time: '2026-05-01' },
-  { id: 'tp_002', name: '新手第一次', desc: '记录你的第一次拼豆', post_count: 890, user_count: 432, is_official: true, status: 'active', create_time: '2026-04-15' },
-  { id: 'tp_003', name: '拼豆作品展示', desc: '晒出你的作品', post_count: 2345, user_count: 1234, is_official: true, status: 'recommended', create_time: '2026-03-01' },
-  { id: 'tp_004', name: '色号讨论', desc: '色号使用心得分享', post_count: 567, user_count: 234, is_official: false, status: 'active', create_time: '2026-02-20' }
+  { id: 'tp_001', topic_id: 'christmas2024', name: '圣诞拼豆挑战', description: '圣诞主题拼豆作品分享', cover_url: '', is_official: 1, status: 'active', post_count: 1234, participant_count: 567, create_time: '2026-05-01' },
+  { id: 'tp_002', topic_id: 'newyear2025', name: '新手第一次', description: '记录你的第一次拼豆', cover_url: '', is_official: 1, status: 'active', post_count: 890, participant_count: 432, create_time: '2026-04-15' },
+  { id: 'tp_003', topic_id: 'pixel2024', name: '拼豆作品展示', description: '晒出你的作品', cover_url: '', is_official: 1, status: 'closed', post_count: 2345, participant_count: 1234, create_time: '2026-03-01' },
+  { id: 'tp_004', topic_id: 'food2024', name: '色号讨论', description: '色号使用心得分享', cover_url: '', is_official: 0, status: 'active', post_count: 567, participant_count: 234, create_time: '2026-02-20' }
 ]
 
 /* ===== 专题 ===== */
 export const mockSpecials: Special[] = [
-  { id: 'sp_001', title: '春节拼豆专场', cover: postCovers[0], desc: '精选春节主题拼豆模板', template_ids: ['t_001', 't_005'], banner_id: 'b_004', status: 'online', create_time: '2026-01-15' },
-  { id: 'sp_002', title: '夏日清凉拼豆', cover: postCovers[3], desc: '清凉夏日主题作品', template_ids: ['t_003'], status: 'offline', create_time: '2026-05-01' }
+  { id: 'sp_001', name: '春节拼豆专场', description: '精选春节主题拼豆模板', cover_url: postCovers[0], template_ids: ['t_001', 't_005'], start_time: '2026-01-20', end_time: '2026-02-20', status: 1, create_time: '2026-01-15' },
+  { id: 'sp_002', name: '夏日清凉拼豆', description: '清凉夏日主题作品', cover_url: postCovers[3], template_ids: ['t_003'], start_time: '2026-06-01', end_time: '2026-08-31', status: 0, create_time: '2026-05-01' }
 ]
 
 /* ===== 推送 ===== */
@@ -208,13 +208,13 @@ export const mockCategories: Category[] = [
 
 /* ===== 标签 ===== */
 export const mockTags: Tag[] = [
-  { id: 'tg_001', name: '圣诞', category_id: '1', category_name: '节日', use_count: 156 },
-  { id: 'tg_002', name: '春节', category_id: '1', category_name: '节日', use_count: 234 },
-  { id: 'tg_003', name: '迪士尼', category_id: '2', category_name: '卡通', use_count: 89 },
-  { id: 'tg_004', name: '猫', category_id: '5', category_name: '动物', use_count: 245 },
-  { id: 'tg_005', name: '樱花', category_id: '3', category_name: '风景', use_count: 167 },
-  { id: 'tg_006', name: '玫瑰', category_id: '4', category_name: '花卉', use_count: 92 },
-  { id: 'tg_007', name: '渐变色', category_id: '2', category_name: '卡通', use_count: 78 }
+  { id: 'tg_001', name: '圣诞', type: 'theme', use_count: 156, status: 1, create_time: '2026-01-01' },
+  { id: 'tg_002', name: '春节', type: 'theme', use_count: 234, status: 1, create_time: '2026-01-01' },
+  { id: 'tg_003', name: '迪士尼', type: 'style', use_count: 89, status: 1, create_time: '2026-01-01' },
+  { id: 'tg_004', name: '猫', type: 'theme', use_count: 245, status: 1, create_time: '2026-01-01' },
+  { id: 'tg_005', name: '樱花', type: 'theme', use_count: 167, status: 1, create_time: '2026-01-01' },
+  { id: 'tg_006', name: '玫瑰', type: 'theme', use_count: 92, status: 1, create_time: '2026-01-01' },
+  { id: 'tg_007', name: '渐变色', type: 'style', use_count: 78, status: 1, create_time: '2026-01-01' }
 ]
 
 /* ===== 核心指标 ===== */

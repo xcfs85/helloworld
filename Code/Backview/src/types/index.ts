@@ -142,8 +142,12 @@ export interface Report {
   target_type: 'post' | 'comment' | 'user'
   target_id: string
   target_summary: string
-  reporter_id: string
-  reporter_name: string
+  target_content?: string
+  images?: string[]
+  reporter: {
+    id: string
+    nickname: string
+  }
   reason: string
   create_time: string
   status: 'pending' | 'ignored' | 'warned' | 'muted' | 'banned'
@@ -155,38 +159,43 @@ export interface Report {
 export interface Banner {
   id: string
   title: string
-  image: string
-  link_type: 'template' | 'special' | 'web' | 'activity'
-  link_url: string
+  image_url: string
+  link_type: 'url' | 'post' | 'template' | 'special' | 'activity'
+  link_value: string
   position: string
   start_time: string
   end_time: string
   sort: number
-  status: 'visible' | 'hidden'
-  click_count: number
+  status: 'active' | 'inactive'
+  create_time: string
+  update_time?: string
 }
 
 /* ===== 话题 ===== */
 export interface Topic {
   id: string
+  topic_id: string
   name: string
-  desc: string
+  description: string
+  cover_url?: string
+  is_official: number
+  status: 'active' | 'closed'
   post_count: number
-  user_count: number
-  is_official: boolean
-  status: 'active' | 'ended' | 'recommended'
+  participant_count: number
   create_time: string
 }
 
 /* ===== 专题 ===== */
 export interface Special {
   id: string
-  title: string
-  cover: string
-  desc: string
+  name: string
+  description: string
+  cover_url: string
   template_ids: string[]
-  banner_id?: string
-  status: 'online' | 'offline'
+  start_time: string
+  end_time: string
+  /** 状态: 0-下架 1-上架 */
+  status: number
   create_time: string
 }
 
@@ -300,8 +309,13 @@ export interface Category {
 export interface Tag {
   id: string
   name: string
-  category_id: string
-  category_name: string
+  /** 所属分类: style/theme/difficulty */
+  category?: string
+  /** 标签类型: style/theme/difficulty */
+  type?: string
   use_count: number
+  /** 状态: 0-禁用 1-启用 */
+  status: number
+  create_time: string
   desc?: string
 }
